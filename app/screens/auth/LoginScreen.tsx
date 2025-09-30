@@ -13,19 +13,30 @@ import {
 } from "react-native";
 import { Link, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { login } from "@/lib/api/auth";
 
 export default function LoginScreen() {
-  const [phone, setPhone] = useState("abc@gmail.com");
-  const [password, setPassword] = useState("123");
+  const [email, setEmail] = useState("a@example.com");
+  const [password, setPassword] = useState("12345678");
   const [show, setShow] = useState(false);
-  const onLogin = () => {
-    if (!phone || !password) {
-      Alert.alert("Thiếu thông tin", "Vui lòng nhập số điện thoại và mật khẩu");
+  const [loading, setLoading] = useState(false);
+  const onLogin = async () => {
+    const e = email.trim();
+    const p = password;
+    if (!e || !p) {
+      Alert.alert("Thiếu thông tin", "Vui lòng nhập email và mật khẩu");
       return;
     }
-    router.replace("/screens/tab/HomeScreen");
+    try {
+      setLoading(true);
+      await login(e, p); // hàm này đã lưu token
+      router.replace("/screens/tab/HomeScreen"); // đổi route nếu khác
+    } catch (err: any) {
+      Alert.alert("Lỗi", err.message);
+    } finally {
+      setLoading(false);
+    }
   };
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.select({ ios: "padding" })}
@@ -50,8 +61,8 @@ export default function LoginScreen() {
 
         <Text className="text-gray-600 mb-1">Email</Text>
         <TextInput
-          value={phone}
-          onChangeText={setPhone}
+          value={email}
+          onChangeText={setEmail}
           placeholder="abc@gmail.com"
           keyboardType="email-address"
           placeholderTextColor="#858585"
@@ -89,10 +100,13 @@ export default function LoginScreen() {
         </Link>
         <TouchableOpacity
           onPress={onLogin}
-          className="bg-blue-600 w-full h-14 justify-center rounded-2xl mb-4"
+          disabled={loading}
+          className={`w-full h-14 justify-center rounded-2xl mb-4 ${
+            loading ? "bg-blue-400" : "bg-blue-600"
+          }`}
         >
           <Text className="text-white text-center font-semibold text-lg">
-            Đăng nhập
+            {loading ? "Đang đăng nhập..." : "Đăng nhập"}
           </Text>
         </TouchableOpacity>
 

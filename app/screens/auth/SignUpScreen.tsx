@@ -8,41 +8,60 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import { Link, router } from "expo-router";
 import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
+import { register } from "@/lib/api/auth";
 
 export default function RegisterScreen() {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [name, setName] = useState("Nguyễn Phú Tài");
+  const [email, setEmail] = useState("nphutai@gmail.com");
+  const [phone, setPhone] = useState("0788655673");
+  const [password, setPassword] = useState("12345678");
+  const [cccd, setCccd] = useState("077204002838");
+  const [apartmentcode, setApartmentCode] = useState("A1");
 
   const [emailErr, setEmailErr] = useState<string | null>(null);
   const [phoneErr, setPhoneErr] = useState<string | null>(null);
+  const [cccdErr, setCCCDErr] = useState<string | null>(null);
+  const [nameErr, serNameErr] = useState<string | null>(null);
+  const [apartmentcodeErr, setApartmentCodeErr] = useState<string | null>(null);
 
   const validateEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-  const validatePhone = (v: string) =>
-    /^[0-9]{9,12}$/.test(v.replace(/\D/g, ""));
+  const validatePhone = (v: string) => /^[0-9]{10}$/.test(v.replace(/\D/g, ""));
+  const validateCCCD = (v: string) => /^[0-9]{12}$/.test(v.replace(/\D/g, ""));
 
   const onBlurEmail = () =>
     setEmailErr(validateEmail(email) ? null : "Email không hợp lệ");
+
   const onBlurPhone = () =>
     setPhoneErr(validatePhone(phone) ? null : "Số điện thoại không hợp lệ");
+  const onBlurCCCD = () =>
+    setCCCDErr(validateCCCD(cccd) ? null : "Căn cước công dân không hợp lệ");
 
-  const onSubmit = () => {
+  const onSubmit = async () => {
     onBlurEmail();
     onBlurPhone();
-    if (!firstName || !phone || !password) {
-      alert("Vui lòng điền đầy đủ thông tin");
+
+    if (!name || !email || !phone || !password || !cccd) {
+      Alert.alert("Lỗi", "Vui lòng điền đầy đủ thông tin");
       return;
     }
-    if (emailErr || phoneErr || !validateEmail(email) || !validatePhone(phone))
-      return;
+    if (emailErr || phoneErr) return;
 
-    router.replace("/screens/auth/ReceiveOTPScreen");
+    try {
+      await register(name, email, password, phone, cccd, apartmentcode);
+
+      Alert.alert("Thành công", "Đăng ký thành công!");
+      router.replace("/screens/auth/LoginScreen");
+    } catch (err: any) {
+      const errors = err?.errors || {};
+      if (errors.email) setEmailErr(errors.email[0]);
+      if (errors.phone) setPhoneErr(errors.phone[0]);
+
+      Alert.alert("Đăng ký thất bại", err?.message || "Có lỗi xảy ra");
+    }
   };
 
   return (
@@ -77,17 +96,24 @@ export default function RegisterScreen() {
 
         <View className="gap-3 mt-2">
           <Field
-            label="CCCD/CMT"
-            value={username}
-            onChangeText={setUsername}
+            label="Căn cước công dân"
+            value={cccd}
+            onChangeText={(t) => {
+              setCccd(t);
+              if (cccdErr) setCCCDErr(null);
+            }}
+            onBlur={onBlurCCCD}
             placeholder="ABCD21092025"
             autoCapitalize="none"
             icon="address-card"
           />
+          {cccdErr ? (
+            <Text className="text-red-500 text-xs mt-1">{cccdErr}</Text>
+          ) : null}
           <Field
             label="Họ tên"
-            value={firstName}
-            onChangeText={setFirstName}
+            value={name}
+            onChangeText={setName}
             placeholder="Nguyễn Phú Tài"
             icon="user-circle"
           />
@@ -131,8 +157,8 @@ export default function RegisterScreen() {
 
           <Field
             label="Mã căn hộ"
-            value={username}
-            onChangeText={setUsername}
+            value={apartmentcode}
+            onChangeText={setApartmentCode}
             placeholder="A1"
             autoCapitalize="none"
             icon="address-card"

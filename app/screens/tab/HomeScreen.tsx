@@ -14,8 +14,9 @@ import {
 } from "@expo/vector-icons";
 import Carousel, { Pagination } from "react-native-reanimated-carousel";
 import { router } from "expo-router";
-
+import { useAuthGuard } from "@/lib/hook/useAuthGuard";
 export default function HomeScreen() {
+  useAuthGuard();
   const width = Dimensions.get("screen").width * 0.88;
   const list_offers = [
     {
