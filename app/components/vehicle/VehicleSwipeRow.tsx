@@ -8,6 +8,7 @@ import {
 } from "@expo/vector-icons";
 import Swipeable from "react-native-gesture-handler/Swipeable";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { AppColor } from "@/lib/utils/color";
 
 // Type phù hợp với backend
 export type Vehicle = {
@@ -117,13 +118,17 @@ export default function VehicleSwipeRow({
         friction={2}
       >
         <TouchableOpacity
-          activeOpacity={0.85}
+          activeOpacity={0.9}
           onPress={() => onPress?.(v)}
-          className="px-4 py-4 bg-white rounded-2xl flex-row items-center mb-3 shadow-sm"
+          className="px-4 py-4 bg-white rounded-2xl flex-row items-center mb-3 border border-gray-200"
           style={{
             borderLeftWidth: 4,
             borderLeftColor: color,
-            elevation: 2,
+            shadowColor: "#000",
+            shadowOpacity: 0.05,
+            shadowRadius: 4,
+            shadowOffset: { width: 0, height: 2 },
+            elevation: 1,
           }}
         >
           {/* Icon bên trái */}
@@ -136,7 +141,7 @@ export default function VehicleSwipeRow({
 
           {/* Thông tin xe */}
           <View className="flex-1">
-            <Text className="text-[14px] text-gray-900 font-semibold mb-1">
+            <Text className="text-[15px] text-gray-900 font-semibold mb-1">
               {getVehicleDisplayName(v.vehicle_type)}
             </Text>
             <Text className="text-[13px] text-gray-600 font-medium">
@@ -144,8 +149,14 @@ export default function VehicleSwipeRow({
             </Text>
             {v.is_primary && (
               <View className="mt-1.5 self-start">
-                <View className="bg-emerald-50 px-2 py-0.5 rounded-md">
-                  <Text className="text-[10px] text-emerald-700 font-semibold">
+                <View
+                  className="px-2.5 py-1 rounded-md"
+                  style={{ backgroundColor: `${AppColor.PRIMARY}15` }}
+                >
+                  <Text
+                    className="text-[10px] font-semibold"
+                    style={{ color: AppColor.PRIMARY }}
+                  >
                     ⭐ Mặc định
                   </Text>
                 </View>
@@ -155,7 +166,7 @@ export default function VehicleSwipeRow({
 
           {/* Chevron icon */}
           <View className="ml-2">
-            <Ionicons name="chevron-back" size={20} color="#cbd5e1" />
+            <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
           </View>
         </TouchableOpacity>
       </Swipeable>
@@ -170,6 +181,7 @@ const styles = StyleSheet.create({
     height: "88%",
     borderRadius: 16,
     overflow: "hidden",
+    marginBottom: 12,
   },
   actionButton: {
     width: 85,
@@ -179,7 +191,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   editButton: {
-    backgroundColor: "#2563EB",
+    backgroundColor: AppColor.PRIMARY,
     borderTopLeftRadius: 16,
     borderBottomLeftRadius: 16,
     marginRight: 1,

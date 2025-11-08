@@ -2,7 +2,11 @@ import { apiAuth } from "@/lib/api/client";
 import { parseApiError } from "@/lib/api/error";
 
 // Định nghĩa types theo backend
-export type VehicleType = "motorbike" | "car_4_seat" | "car_7_seat" | "light_truck";
+export type VehicleType =
+  | "motorbike"
+  | "car_4_seat"
+  | "car_7_seat"
+  | "light_truck";
 
 export interface Vehicle {
   id: number;
@@ -32,10 +36,12 @@ export interface VehicleListResponse {
 }
 
 // Lấy danh sách phương tiện
-export async function getVehicles(userId: number): Promise<VehicleListResponse> {
+export async function getVehicles(
+  userId: number
+): Promise<VehicleListResponse> {
   try {
     const { data } = await apiAuth.get<VehicleListResponse>("/vehicles", {
-      params: { user_id: userId, is_active: true }
+      params: { user_id: userId },
     });
     return data;
   } catch (err: any) {
@@ -62,9 +68,14 @@ export interface CreateVehiclePayload {
   license_plate: string;
 }
 
-export async function createVehicle(payload: CreateVehiclePayload): Promise<Vehicle> {
+export async function createVehicle(
+  payload: CreateVehiclePayload
+): Promise<Vehicle> {
   try {
-    const { data } = await apiAuth.post<{ data: Vehicle }>("/vehicles", payload);
+    const { data } = await apiAuth.post<{ data: Vehicle }>(
+      "/vehicles",
+      payload
+    );
     return data.data;
   } catch (err: any) {
     const message = parseApiError(err);
@@ -78,9 +89,15 @@ export interface UpdateVehiclePayload {
   license_plate?: string;
 }
 
-export async function updateVehicle(id: number, payload: UpdateVehiclePayload): Promise<Vehicle> {
+export async function updateVehicle(
+  id: number,
+  payload: UpdateVehiclePayload
+): Promise<Vehicle> {
   try {
-    const { data } = await apiAuth.patch<{ data: Vehicle }>(`/vehicles/${id}`, payload);
+    const { data } = await apiAuth.patch<{ data: Vehicle }>(
+      `/vehicles/${id}`,
+      payload
+    );
     return data.data;
   } catch (err: any) {
     const message = parseApiError(err);
@@ -101,7 +118,9 @@ export async function removeVehicle(id: number): Promise<void> {
 // Đặt làm phương tiện mặc định
 export async function setPrimaryVehicle(id: number): Promise<Vehicle> {
   try {
-    const { data } = await apiAuth.post<{ data: Vehicle }>(`/vehicles/primary/${id}`);
+    const { data } = await apiAuth.post<{ data: Vehicle }>(
+      `/vehicles/primary/${id}`
+    );
     return data.data;
   } catch (err: any) {
     const message = parseApiError(err);
@@ -112,7 +131,9 @@ export async function setPrimaryVehicle(id: number): Promise<Vehicle> {
 // Bật/tắt phương tiện
 export async function toggleVehicleActive(id: number): Promise<Vehicle> {
   try {
-    const { data } = await apiAuth.post<{ data: Vehicle }>(`/vehicles/toggle-active/${id}`);
+    const { data } = await apiAuth.post<{ data: Vehicle }>(
+      `/vehicles/toggle-active/${id}`
+    );
     return data.data;
   } catch (err: any) {
     const message = parseApiError(err);

@@ -2,28 +2,30 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { API_AUTH_URL, API_PAYMENT_URL } from "../../constants/env";
 import {
   getAccessToken,
-  getRefreshToken,
   getAccessExp,
   saveTokens,
   clearTokens,
 } from "../storage/auth";
+let isRedirecting = false;
 
 // ------------ TẠO INTERCEPTOR HELPER ------------
 function createAuthInterceptor(instance: any) {
-  instance.interceptors.request.use(async (cfg: InternalAxiosRequestConfig & { __retry?: boolean }) => {
-    // Nếu access token sắp hết hạn (< 30s) thì chủ động refresh trước khi gửi
-    const exp = await getAccessExp();
-    if (exp && exp - Math.floor(Date.now() / 1000) < 30) {
-      await doRefresh(); // im lặng, không throw (nếu fail sẽ để 401 xử lý)
-    }
+  instance.interceptors.request.use(
+    async (cfg: InternalAxiosRequestConfig & { __retry?: boolean }) => {
+      // Nếu access token sắp hết hạn (< 30s) thì chủ động refresh trước khi gửi
+      const exp = await getAccessExp();
+      if (exp && exp - Math.floor(Date.now() / 1000) < 30) {
+        await doRefresh(); // im lặng, không throw (nếu fail sẽ để 401 xử lý)
+      }
 
-    const at = await getAccessToken();
-    if (at) {
-      cfg.headers = cfg.headers ?? {};
-      cfg.headers.Authorization = `Bearer ${at}`;
+      const at = await getAccessToken();
+      if (at) {
+        cfg.headers = cfg.headers ?? {};
+        cfg.headers.Authorization = `Bearer ${at}`;
+      }
+      return cfg;
     }
-    return cfg;
-  });
+  );
 
   instance.interceptors.response.use(
     (r: any) => r,
@@ -37,6 +39,14 @@ function createAuthInterceptor(instance: any) {
           config.headers = config.headers ?? {};
           config.headers.Authorization = `Bearer ${newAT}`;
           return instance(config); // retry request cũ
+        } else {
+          if (!isRedirecting) {
+            isRedirecting = true;
+            await clearTokens();
+            setTimeout(() => {
+              isRedirecting = false;
+            }, 1000);
+          }
         }
       }
       return Promise.reject(error);
@@ -52,16 +62,21 @@ async function doRefresh(): Promise<string | null> {
 
   refreshingPromise = (async () => {
     try {
-      const rt = await getRefreshToken();
-      if (!rt) return null;
+      const ac = await getAccessToken();
+      if (!ac) return null;
 
       // Bỏ /api vì baseURL đã có
       const { data } = await axios.post(
         `${API_AUTH_URL}/auth/refresh`, // Chỉ cần /auth/refresh
-        { refresh_token: rt },
-        { timeout: 12000 }
+        {},
+        {
+          timeout: 12000,
+          headers: {
+            Authorization: `Bearer ${ac}`,
+          },
+        }
       );
-      await saveTokens(data.access_token, data.refresh_token, data.expires_in);
+      await saveTokens(data.access_token, data.expires_in);
       return data.access_token as string;
     } catch {
       await clearTokens();
