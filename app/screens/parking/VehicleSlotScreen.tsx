@@ -87,7 +87,7 @@ export default function BookingFormScreen() {
     try {
       setSubmitting(true);
       const { createReservation } = await import("@/lib/api/booking");
-      const desiredStartTime = new Date(Date.now() + 60 * 1000).toISOString();
+      const desiredStartTime = new Date(Date.now()).toISOString();
 
       const payload = {
         parking_lot_id: parseInt(lotId),

@@ -64,3 +64,37 @@ export async function getParkingLotSlots(id: number) {
     throw error;
   }
 }
+
+export type PricingRule = {
+  id: number;
+  parking_lot_id: number;
+  vehicle_type: VehicleType;
+  hourly: number;
+  daily_cap: number;
+  monthly_pass: number;
+  peak_enabled: boolean;
+  peak_multiplier: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type ParkingLotPricingRules = {
+  parking_lot: ParkingLot;
+  pricing_rules: PricingRule[];
+};
+
+/**
+ * Lấy pricing rules của một bãi đỗ xe
+ */
+export async function getParkingLotPricingRules(
+  id: number
+): Promise<ParkingLotPricingRules> {
+  try {
+    const { data } = await apiPayment.get<ParkingLotPricingRules>(
+      `/parking-lots/${id}/pricing-rules`
+    );
+    return data;
+  } catch (error: any) {
+    throw error;
+  }
+}

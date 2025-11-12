@@ -1,13 +1,95 @@
-import { router, Tabs } from "expo-router";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { router, Tabs, useFocusEffect, useSegments } from "expo-router";
+import {
+  Ionicons,
+  MaterialCommunityIcons,
+  MaterialIcons,
+} from "@expo/vector-icons";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import { AppColor } from "@/lib/utils/color";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getNotifications } from "@/lib/api/notifications";
+import { getProfile } from "@/lib/api/auth";
 
 const INACTIVE = "#99a1af"; // xám nhạt
 // const ACTIVE = "#155dfc"; // xanh nhạt
 const ACTIVE = AppColor.PRIMARY; // xanh nhạt
 
 export default function TabLayout() {
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [userId, setUserId] = useState<number | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Hàm fetch unread count
+  const fetchUnreadCount = useCallback(async () => {
+    if (!userId) return;
+
+    try {
+      const response = await getNotifications({
+        user_id: userId,
+        per_page: 1, // Chỉ cần lấy 1 để lấy unread_count
+      });
+      
+      setUnreadCount(response.unread_count || 0);
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+    }
+  }, [userId]);
+
+  // Lấy user ID khi component mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const user = await getProfile();
+        const userData = user?.data || user;
+        const currentUserId = userData?.id;
+        
+        if (currentUserId) {
+          setUserId(currentUserId);
+        }
+      } catch (error) {
+        console.error("Error getting user profile:", error);
+      }
+    })();
+  }, []);
+
+   // Fetch unread count khi có userId
+   useEffect(() => {
+    if (userId) {
+      fetchUnreadCount();
+    }
+  }, [userId, fetchUnreadCount]);
+
+  // Tự động refresh mỗi 30 giây
+  useEffect(() => {
+    if (userId) {
+      // Clear interval cũ nếu có
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+
+      // Set interval mới
+      intervalRef.current = setInterval(() => {
+        fetchUnreadCount();
+      }, 30000); // 30 giây
+
+      // Cleanup khi unmount hoặc userId thay đổi
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+        }
+      };
+    }
+  }, [userId, fetchUnreadCount]);
+
+  // Refresh khi tab được focus (khi quay lại từ màn hình khác)
+  useFocusEffect(
+    useCallback(() => {
+      if (userId) {
+        fetchUnreadCount();
+      }
+    }, [userId, fetchUnreadCount])
+  );
+
   return (
     <Tabs
       initialRouteName="HomeScreen" // khớp tên file HomeScreen.tsx
@@ -38,27 +120,29 @@ export default function TabLayout() {
         ),
         headerRight: () => (
           <TouchableOpacity
-            onPress={() => router.push("/screens/tab/HomeScreen")}
+            onPress={() => router.push("/screens/NotificationScreen")}
             style={{ marginRight: 16 }}
           >
             <View>
               <Ionicons name="notifications-outline" size={24} color="#fff" />
-              <View
-                style={{
-                  position: "absolute",
-                  top: -4,
-                  right: -4,
-                  backgroundColor: AppColor.DANGER,
-                  borderRadius: 8,
-                  paddingHorizontal: 4,
-                  minWidth: 16,
-                  height: 16,
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ color: "#fff", fontSize: 10 }}>5</Text>
-              </View>
+              {unreadCount > 0 && (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: -4,
+                    right: -4,
+                    backgroundColor: AppColor.DANGER,
+                    borderRadius: 8,
+                    paddingHorizontal: 4,
+                    minWidth: 16,
+                    height: 16,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontSize: 10 }}>{unreadCount > 99 ? "99+" : unreadCount}</Text>
+                </View>
+              )}
             </View>
           </TouchableOpacity>
         ),
@@ -97,44 +181,8 @@ export default function TabLayout() {
               color={color}
             />
           ),
-          title: "LỊCH SỬ",
-          tabBarLabel: "Lịch sử",
-        }}
-      />
-
-      <Tabs.Screen
-        name="QRScreen"
-        options={{
-          title: "MÃ QR",
-          tabBarButton: (props) => {
-            const { delayLongPress, style, ...rest } = props as any;
-            return (
-              <TouchableOpacity
-                {...rest}
-                delayLongPress={undefined}
-                style={[
-                  style,
-                  { top: -20, justifyContent: "center", alignItems: "center" },
-                ]}
-                activeOpacity={0.9}
-              >
-                <View
-                  style={{
-                    width: 65,
-                    height: 65,
-                    borderRadius: 999,
-                    backgroundColor: AppColor.PRIMARY,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    elevation: 6,
-                    shadowOffset: { width: 0, height: 2 },
-                  }}
-                >
-                  <Ionicons name="qr-code" size={32} color="#fff" />
-                </View>
-              </TouchableOpacity>
-            );
-          },
+          title: "HOẠT ĐỘNG",
+          tabBarLabel: "Hoạt động",
         }}
       />
 
@@ -142,10 +190,72 @@ export default function TabLayout() {
         name="MapParking"
         options={{
           title: "BẢN ĐỒ BÃI",
-          tabBarLabel: "Bản đồ",
+          tabBarButton: (props) => {
+            const segments = useSegments();
+            const focused = segments[segments.length - 1] === "MapParking";
+            const { delayLongPress, style, onPress, ...rest } = props as any;
+            return (
+              <TouchableOpacity
+                {...rest}
+                onPress={onPress}
+                delayLongPress={undefined}
+                style={[
+                  style,
+                  {
+                    top: -25,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  },
+                ]}
+                activeOpacity={0.9}
+              >
+                <View
+                  style={{
+                    width: 65,
+                    height: 65,
+                    borderRadius: 32,
+                    borderWidth: 2,
+                    borderStyle: focused ? "solid" : "dotted",
+                    borderColor: ACTIVE,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: focused ? ACTIVE : "#bde5ff",
+                  }}
+                >
+                  <MaterialCommunityIcons
+                    name="google-maps"
+                    size={32}
+                    color={focused ? "#fff" : ACTIVE}
+                  />
+                </View>
+                <Text
+                  style={{
+                    marginTop: 4,
+                    fontSize: 9,
+                    color: "#fff",
+                    fontWeight: "400",
+                    paddingVertical: 2,
+                    paddingHorizontal: 8,
+                    borderRadius: 10,
+                    backgroundColor: ACTIVE,
+                  }}
+                >
+                  Bản đồ
+                </Text>
+              </TouchableOpacity>
+            );
+          },
+        }}
+      />
+
+      <Tabs.Screen
+        name="QRScreen"
+        options={{
+          title: "Mã QR",
+          tabBarLabel: "QR",
           tabBarIcon: ({ focused, color }) => (
             <Ionicons
-              name={focused ? "map" : "map-outline"}
+              name={focused ? "qr-code" : "qr-code-outline"}
               size={22}
               color={color}
             />
