@@ -371,7 +371,7 @@ export default function QRCheckinScreen() {
           )}
 
           {/* Refresh Button */}
-          <View className="mb-8">
+          {/* <View className="mb-8">
             <Pressable
               onPress={onRefresh}
               className="h-14 rounded-2xl items-center justify-center shadow-lg bg-gradient-to-r from-blue-600 to-indigo-600"
@@ -388,7 +388,7 @@ export default function QRCheckinScreen() {
                 </Text>
               </View>
             </Pressable>
-          </View>
+          </View> */}
         </View>
       )}
     </ScrollView>

@@ -10,14 +10,19 @@ import {
   Alert,
   NativeSyntheticEvent,
   TextInputKeyPressEventData,
+  ActivityIndicator,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { sendPasswordResetOtp } from "@/lib/api/auth";
+import { sendPasswordResetOtp, verifyPasswordResetOtp } from "@/lib/api/auth";
 
 export default function OtpScreen() {
   const LENGTH = 6;
-  const [email, setEmail] = useState("nphutai49@gmail.com");
+  const params = useLocalSearchParams();
+  const [email, setEmail] = useState(
+    (params.email as string) || "nphutai49@gmail.com"
+  );
+  const [loading, setLoading] = useState(false);
   const inputs = useRef<Array<TextInput | null>>([]);
   const [digits, setDigits] = useState<string[]>(
     Array.from({ length: LENGTH }, () => "")
@@ -65,14 +70,26 @@ export default function OtpScreen() {
 
   const code = digits.join("");
 
-  const onVerify = () => {
+  const onVerify = async () => {
     if (code.length !== LENGTH) {
       Alert.alert("Thiếu OTP", `Vui lòng nhập đủ ${LENGTH} số.`);
       return;
     }
-    // demo: chưa gọi API
-    //Alert.alert("OTP", `Mã: ${code}`);
-    router.replace("/screens/auth/ResetPasswordScreen");
+    try {
+      setLoading(true);
+      const { reset_token } = await verifyPasswordResetOtp(email.trim(), code);
+      router.replace({
+        pathname: "/screens/auth/ResetPasswordScreen",
+        params: { reset_token, email },
+      });
+    } catch (err: any) {
+      Alert.alert(
+        "Xác thực thất bại",
+        err?.message || "Mã OTP không đúng. Vui lòng thử lại."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const onResend = async () => {
@@ -146,9 +163,16 @@ export default function OtpScreen() {
       <View className="px-6 mt-8">
         <Pressable
           onPress={onVerify}
-          className="bg-blue-600 rounded-2xl h-12 items-center justify-center"
+          disabled={loading}
+          className={`bg-blue-600 rounded-2xl h-12 items-center justify-center ${
+            loading ? "opacity-50" : ""
+          }`}
         >
-          <Text className="text-white font-semibold">Xác thực</Text>
+          {loading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text className="text-white font-semibold">Xác thực</Text>
+          )}
         </Pressable>
       </View>
 

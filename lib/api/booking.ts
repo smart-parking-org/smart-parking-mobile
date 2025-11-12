@@ -85,9 +85,16 @@ export async function getMyActiveReservations(userId: number): Promise<Reservati
     
     console.log(`📋 Got ${data.data.reservations.length} total reservations for user ${userId}`);
     
-    // Filter phía client: chỉ lấy confirmed và checked_in
+    // Filter phía client: chỉ lấy confirmed, checked_in và pending_checkout
+    // Loại bỏ expired, cancelled, checked_out
     const activeReservations = data.data.reservations.filter(
-      (r) => r.status === "confirmed" || r.status === "checked_in"
+      (r) =>
+        (r.status === "confirmed" ||
+          r.status === "checked_in" ||
+          r.status === "pending_checkout") &&
+        r.status !== "expired" &&
+        r.status !== "cancelled" &&
+        r.status !== "checked_out"
     );
     
     console.log(`✅ Filtered to ${activeReservations.length} active reservations`);
@@ -102,13 +109,37 @@ export async function getMyActiveReservations(userId: number): Promise<Reservati
   }
 }
 
-// Check-out một reservation
-export async function checkOutReservation(reservationId: number) {
+// Check-out một reservation với phương thức thanh toán
+export async function checkOutReservation(
+  reservationId: number,
+  paymentMethod: "online" | "offline" = "online"
+) {
   try {
-    const response = await apiPayment.put(`/reservations/${reservationId}/check-out`);
+    const response = await apiPayment.put(`/reservations/${reservationId}/check-out`, {
+      payment_method: paymentMethod,
+    });
     return response.data;
   } catch (error: any) {
     console.error("❌ Error during checkout:", error);
+    throw error;
+  }
+}
+
+// Lấy QR checkout code cho reservation
+export async function getCheckoutCode(reservationId: number) {
+  try {
+    const response = await apiPayment.get<{
+      success: boolean;
+      data: {
+        checkout_code: string;
+        status: string;
+        expires_at?: string;
+        qr_data: string;
+      };
+    }>(`/reservations/${reservationId}/checkout-code`);
+    return response.data;
+  } catch (error: any) {
+    console.error("❌ Error getting checkout code:", error);
     throw error;
   }
 }

@@ -113,3 +113,34 @@ export async function updateFcmToken(fcmToken: string): Promise<void> {
     );
   }
 }
+export async function verifyPasswordResetOtp(
+  email: string,
+  otp: string
+): Promise<{ reset_token: string }> {
+  try {
+    const { data } = await apiAuth.post<{ reset_token: string }>("/auth/forgot-password/verify-otp", {
+      email,
+      otp,
+    });
+    return data;
+  } catch (err: any) {
+    // Chuẩn hoá message gọn gàng cho UI
+    const message = parseApiError(err);
+    throw new Error(message);
+  }
+}
+export async function resetPassword(
+  email: string,
+  reset_token: string,
+  password: string
+): Promise<void> {
+  try {
+    await apiAuth.post("/auth/forgot-password/reset", {
+      reset_token,
+      password,
+    });
+  } catch (err: any) {
+    const message = parseApiError(err);
+    throw new Error(message);
+  }
+}
