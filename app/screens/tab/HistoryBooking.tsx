@@ -705,17 +705,17 @@ export default function HistoryBooking() {
         </View>
       ) : (
         <FlatList
-          data={currentData}
+          data={currentData as (ReservationHistory | Violation)[]}
           keyExtractor={(item) =>
             activeTab === "bookings"
               ? String((item as ReservationHistory).id)
-              : String((item as Violation).id)
+              : String((item as unknown as Violation).id)
           }
           renderItem={({ item }) =>
             activeTab === "bookings" ? (
               <BookingHistoryItem item={item as ReservationHistory} />
             ) : (
-              <ViolationItem item={item as Violation} />
+              <ViolationItem item={item as unknown as Violation} />
             )
           }
           showsVerticalScrollIndicator={false}

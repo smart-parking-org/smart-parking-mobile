@@ -53,6 +53,11 @@ export type Reservation = {
     license_plate: string;
     vehicle_type: string;
   };
+  payment?: {
+    id: number;
+    amount: number;
+    status: string; // 'PAID' hoặc 'PENDING'
+  } | null;
 };
 
 export async function createReservation(
@@ -91,10 +96,8 @@ export async function getMyActiveReservations(userId: number): Promise<Reservati
       (r) =>
         (r.status === "confirmed" ||
           r.status === "checked_in" ||
-          r.status === "pending_checkout") &&
-        r.status !== "expired" &&
-        r.status !== "cancelled" &&
-        r.status !== "checked_out"
+          r.status === "pending_payment" ||
+          r.status === "pending_checkout")
     );
     
     console.log(`✅ Filtered to ${activeReservations.length} active reservations`);
@@ -140,6 +143,58 @@ export async function getCheckoutCode(reservationId: number) {
     return response.data;
   } catch (error: any) {
     console.error("❌ Error getting checkout code:", error);
+    throw error;
+  }
+}
+
+// Gọi API expireDue để đánh dấu các reservations hết hạn
+export async function expireDue() {
+  try {
+    const response = await apiPayment.post<{
+      success: boolean;
+      message: string;
+      data: {
+        expired_count: number;
+      };
+    }>("/reservations/expire-due");
+    return response.data;
+  } catch (error: any) {
+    console.error("❌ Error expiring reservations:", error);
+    throw error;
+  }
+}
+
+// Gia hạn reservation
+export async function extendReservation(
+  reservationId: number,
+  additionalMinutes: number = 15
+) {
+  try {
+    const response = await apiPayment.put<{
+      success: boolean;
+      message: string;
+      data: Reservation;
+    }>(`/reservations/${reservationId}/extend`, {
+      additional_minutes: additionalMinutes,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("❌ Error extending reservation:", error);
+    throw error;
+  }
+}
+
+// Hủy reservation
+export async function cancelReservation(reservationId: number) {
+  try {
+    const response = await apiPayment.put<{
+      success: boolean;
+      message: string;
+      data: Reservation;
+    }>(`/reservations/${reservationId}/cancel`);
+    return response.data;
+  } catch (error: any) {
+    console.error("❌ Error cancelling reservation:", error);
     throw error;
   }
 }

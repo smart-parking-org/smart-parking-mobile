@@ -67,11 +67,7 @@ export default function ResetPasswordScreen() {
           <Text className="flex-1 text-center text-xl font-semibold">
             Đặt lại mật khẩu
           </Text>
-          {email && (
-            <Text className="text-center text-gray-600 mt-2">
-              Email: <Text className="font-semibold">{email}</Text>
-            </Text>
-          )}
+
           <View className="h-10 w-10" />
         </View>
 
