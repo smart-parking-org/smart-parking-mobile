@@ -87,7 +87,7 @@ export default function BookingFormScreen() {
     try {
       setSubmitting(true);
       const { createReservation } = await import("@/lib/api/booking");
-      const desiredStartTime = new Date(Date.now()).toISOString();
+      const desiredStartTime = new Date(Date.now() + 30 * 1000).toISOString();
 
       const payload = {
         parking_lot_id: parseInt(lotId),
@@ -109,13 +109,29 @@ export default function BookingFormScreen() {
       });
     } catch (error: any) {
       console.error("❌ Reservation error:", error);
+
       const errorDetails =
         error.response?.data?.errors || error.response?.data?.message;
-      const errorMessage = Array.isArray(errorDetails)
-        ? errorDetails.join(", ")
-        : errorDetails ||
-          error.message ||
+
+      let errorMessage: string;
+
+      if (Array.isArray(errorDetails)) {
+        errorMessage = errorDetails.join(", ");
+      } else if (typeof errorDetails === "object") {
+        // Trường hợp là object (vd: { field: ["msg"] })
+        errorMessage = Object.entries(errorDetails)
+          .map(
+            ([key, val]) =>
+              `${key}: ${Array.isArray(val) ? val.join(", ") : val}`
+          )
+          .join("\n");
+      } else {
+        errorMessage =
+          errorDetails?.toString() ||
+          error.message?.toString() ||
           "Không thể đặt chỗ. Vui lòng thử lại";
+      }
+
       Alert.alert("Không thể đặt chỗ", errorMessage);
     } finally {
       setSubmitting(false);

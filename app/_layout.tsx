@@ -64,51 +64,91 @@ export default function Root() {
           const params = parsed.queryParams;
           const status = params?.status as string;
           const reservationId = params?.reservation_id as string;
+          const monthlyPassId = params?.monthly_pass_id as string;
           const txnRef = params?.txn_ref as string;
           const orderId = params?.order_id as string;
 
           console.log("🔗 Deep link received:", {
             status,
             reservationId,
+            monthlyPassId,
             txnRef,
             orderId,
           });
 
-          if (status === "PAID") {
-            Alert.alert(
-              "Thanh toán thành công!",
-              "Cảm ơn bạn đã sử dụng dịch vụ.",
-              [
-                {
-                  text: "OK",
-                  onPress: () => {
-                    // Navigate về QRScreen hoặc màn hình phù hợp
-                    router.replace("/screens/tab/QRScreen");
-                  },
-                },
-              ]
-            );
-          } else if (status === "FAILED") {
-            Alert.alert(
-              "Thanh toán thất bại",
-              "Vui lòng thử lại hoặc chọn phương thức thanh toán khác.",
-              [
-                {
-                  text: "OK",
-                  onPress: () => {
-                    // Navigate về màn hình thanh toán nếu có reservationId
-                    if (reservationId) {
-                      router.replace(
-                        `/screens/reservations/PaymentScreen?reservationId=${reservationId}`
-                      );
-                    } else {
-                      router.back();
-                    }
-                  },
-                },
-              ]
-            );
+          const isMonthlyPass = monthlyPassId || (orderId && orderId.startsWith("MP-"));
+          
+          if (isMonthlyPass) {
+            router.replace("/screens/tab/HomeScreen");
+            setTimeout(() => {
+              router.push("/screens/MonthlyPassScreen");
+            }, 100);
+          } else if (reservationId) {
+            router.replace("/screens/tab/HomeScreen");
+            setTimeout(() => {
+              router.push("/screens/tab/QRScreen");
+            }, 100);
+          } else {
+            router.replace("/screens/tab/HomeScreen");
           }
+
+          setTimeout(() => {
+            if (status === "PAID") {
+              if (isMonthlyPass) {
+                Alert.alert(
+                  "Thanh toán thành công!",
+                  "Vé tháng của bạn đã được kích hoạt. Vui lòng kiểm tra trong mục 'Vé tháng'.",
+                  [
+                    {
+                      text: "OK",
+                      onPress: () => {},
+                    },
+                  ]
+                );
+              } else if (reservationId) {
+                Alert.alert(
+                  "Thanh toán thành công!",
+                  "Cảm ơn bạn đã sử dụng dịch vụ.",
+                  [
+                    {
+                      text: "OK",
+                      onPress: () => {},
+                    },
+                  ]
+                );
+              } else {
+                Alert.alert(
+                  "Thanh toán thành công!",
+                  "Cảm ơn bạn đã sử dụng dịch vụ.",
+                  [
+                    {
+                      text: "OK",
+                      onPress: () => {},
+                    },
+                  ]
+                );
+              }
+            } else if (status === "FAILED") {
+              Alert.alert(
+                "Thanh toán thất bại",
+                "Vui lòng thử lại hoặc chọn phương thức thanh toán khác.",
+                [
+                  {
+                    text: "OK",
+                    onPress: () => {
+                      if (reservationId) {
+                        router.push(
+                          `/screens/reservations/PaymentScreen?reservationId=${reservationId}`
+                        );
+                      } else if (isMonthlyPass) {
+                        router.push("/screens/MonthlyPassScreen");
+                      }
+                    },
+                  },
+                ]
+              );
+            }
+          }, 800);
         }
       } catch (error) {
         console.error("Error handling deep link:", error);
