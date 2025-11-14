@@ -11,10 +11,7 @@ import {
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import QRCode from "react-native-qrcode-svg";
-import {
-  getMyActiveReservations,
-  getCheckoutCode,
-} from "../../../lib/api/booking";
+import { getMyActiveReservations } from "../../../lib/api/booking";
 import { getProfile } from "../../../lib/api/auth";
 import type { Reservation } from "../../../lib/api/booking";
 
@@ -26,9 +23,6 @@ const qrPayload = (item: Reservation) => {
 export default function QRScreen() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Reservation[]>([]);
-  const [checkoutCodes, setCheckoutCodes] = useState<Record<number, boolean>>(
-    {}
-  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,26 +38,6 @@ export default function QRScreen() {
       console.log(
         `✅ Loaded ${reservations.length} reservations for user ${userId}`
       );
-
-      // Check checkout codes cho các reservations đang pending_checkout
-      const codesMap: Record<number, boolean> = {};
-      const pendingCheckoutReservations = reservations.filter(
-        (r) => r.status === "pending_checkout"
-      );
-
-      // Check checkout code cho từng reservation (song song)
-      await Promise.all(
-        pendingCheckoutReservations.map(async (reservation) => {
-          try {
-            await getCheckoutCode(reservation.id);
-            codesMap[reservation.id] = true; // Có checkout code = đã thanh toán
-          } catch (error) {
-            codesMap[reservation.id] = false; // Không có checkout code = chưa thanh toán
-          }
-        })
-      );
-
-      setCheckoutCodes(codesMap);
     } catch (error: any) {
       console.error("Error loading reservations:", error);
     } finally {
@@ -96,16 +70,16 @@ export default function QRScreen() {
   }, [load]);
 
   const onCheckout = (reservation: Reservation) => {
-    // Nếu đã pending_checkout, navigate thẳng tới PaymentScreen (payment đã được tạo)
-    if (reservation.status === "pending_checkout") {
+    // Nếu pending_payment, navigate tới PaymentScreen (payment đã được tạo, chỉ cần thanh toán)
+    if (reservation.status === "pending_payment") {
       router.push({
         pathname: "/screens/reservations/PaymentScreen",
         params: {
           reservationId: String(reservation.id),
         },
       });
-    } else {
-      // Nếu checked_in, navigate tới CheckoutScreen để chọn phương thức thanh toán
+    } else if (reservation.status === "checked_in") {
+      // Nếu checked_in, navigate tới CheckoutScreen để chọn phương thức thanh toán và tạo payment
       router.push({
         pathname: "/screens/reservations/CheckoutScreen",
         params: {
@@ -167,7 +141,8 @@ export default function QRScreen() {
           className={`px-3 py-1 rounded-full ${
             item.status === "checked_in"
               ? "bg-blue-100"
-              : item.status === "pending_checkout"
+              : item.status === "pending_checkout" ||
+                item.status === "pending_payment"
               ? "bg-amber-100"
               : "bg-green-100"
           }`}
@@ -176,31 +151,50 @@ export default function QRScreen() {
             className={`font-semibold text-sm ${
               item.status === "checked_in"
                 ? "text-blue-800"
-                : item.status === "pending_checkout"
+                : item.status === "pending_checkout" ||
+                  item.status === "pending_payment"
                 ? "text-amber-800"
                 : "text-green-800"
             }`}
           >
             {item.status === "checked_in"
               ? "Đã check-in"
+              : item.status === "pending_payment"
+              ? "Chờ thanh toán"
               : item.status === "pending_checkout"
-              ? checkoutCodes[item.id]
-                ? "Chờ check out"
-                : "Chờ thanh toán"
+              ? "Chờ check out"
               : "Đã xác nhận"}
           </Text>
         </View>
       </View>
 
       {/* QR Code - Chỉ hiển thị khi status là confirmed hoặc checked_in */}
-      {item.status !== "pending_checkout" && (
-        <View className="items-center mb-6">
-          <View className="bg-white p-4 rounded-2xl shadow-sm border-2 border-gray-100">
-            <QRCode value={qrPayload(item)} size={160} />
+      {item.status !== "pending_checkout" &&
+        item.status !== "pending_payment" && (
+          <View className="items-center mb-6">
+            <View className="bg-white p-4 rounded-2xl shadow-sm border-2 border-gray-100">
+              <QRCode value={qrPayload(item)} size={160} />
+            </View>
+            <Text className="mt-3 text-gray-600 text-center text-sm">
+              Quét mã này để check-in
+            </Text>
           </View>
-          <Text className="mt-3 text-gray-600 text-center text-sm">
-            Quét mã này để check-in
-          </Text>
+        )}
+
+      {/* Thông báo cho pending_payment */}
+      {item.status === "pending_payment" && (
+        <View className="items-center mb-6">
+          <View className="bg-amber-50 p-4 rounded-2xl border-2 border-amber-200 w-full">
+            <View className="flex-row items-center justify-center mb-2">
+              <Ionicons name="information-circle" size={24} color="#f59e0b" />
+              <Text className="text-amber-800 font-bold ml-2">
+                Đang chờ thanh toán
+              </Text>
+            </View>
+            <Text className="text-amber-700 text-center text-sm">
+              Vui lòng thanh toán để nhận mã QR checkout
+            </Text>
+          </View>
         </View>
       )}
 
@@ -211,15 +205,11 @@ export default function QRScreen() {
             <View className="flex-row items-center justify-center mb-2">
               <Ionicons name="information-circle" size={24} color="#f59e0b" />
               <Text className="text-amber-800 font-bold ml-2">
-                {checkoutCodes[item.id]
-                  ? "Đã thanh toán thành công"
-                  : "Đang chờ thanh toán"}
+                Đã thanh toán thành công
               </Text>
             </View>
             <Text className="text-amber-700 text-center text-sm">
-              {checkoutCodes[item.id]
-                ? "Nhấn 'Lấy QR' để xem mã QR checkout"
-                : "Vui lòng thanh toán để nhận mã QR checkout"}
+              Nhấn 'Lấy QR' để xem mã QR checkout
             </Text>
           </View>
         </View>
@@ -290,7 +280,9 @@ export default function QRScreen() {
             })
           }
           className={
-            item.status === "checked_in" || item.status === "pending_checkout"
+            item.status === "checked_in" ||
+            item.status === "pending_checkout" ||
+            item.status === "pending_payment"
               ? "flex-1 h-12 rounded-2xl items-center justify-center bg-blue-600"
               : "h-12 rounded-2xl items-center justify-center bg-blue-600 w-full"
           }
@@ -306,9 +298,9 @@ export default function QRScreen() {
           </View>
         </Pressable>
 
-        {/* Nút Thanh toán - hiển thị khi checked_in hoặc pending_checkout */}
+        {/* Nút Thanh toán - hiển thị khi checked_in hoặc pending_payment */}
         {(item.status === "checked_in" ||
-          item.status === "pending_checkout") && (
+          item.status === "pending_payment") && (
           <Pressable
             onPress={() => onCheckout(item)}
             className="flex-1 h-12 rounded-2xl items-center justify-center bg-green-400"
@@ -325,7 +317,7 @@ export default function QRScreen() {
           </Pressable>
         )}
 
-        {/* Nút Lấy mã QR checkout - chỉ hiển thị khi pending_checkout (nếu đã thanh toán) */}
+        {/* Nút Lấy mã QR checkout - chỉ hiển thị khi pending_checkout (đã thanh toán) */}
         {item.status === "pending_checkout" && (
           <Pressable
             onPress={() => onGetCheckoutCode(item)}

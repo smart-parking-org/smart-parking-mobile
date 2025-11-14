@@ -12,6 +12,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { apiPayment } from "@/lib/api/client";
 import { checkOutReservation } from "@/lib/api/booking";
+import { PageHeader } from "../../components/common/PageHeader";
 
 type ReservationDetails = {
   id: number;
@@ -91,10 +92,12 @@ export default function CheckoutScreen() {
     // Nếu chưa checkout (chưa có check_out_at) → tính theo số giờ đã đặt
     // Nếu đã checkout (có check_out_at) → kiểm tra xem có lố quá không
     let billableHours = bookedHours;
-    
+
     if (reservation.check_out_at) {
       // Đã checkout, kiểm tra xem có lố quá số giờ đã đặt không
-      const checkIn = new Date(reservation.check_in_at || reservation.start_time);
+      const checkIn = new Date(
+        reservation.check_in_at || reservation.start_time
+      );
       const checkOut = new Date(reservation.check_out_at);
       const actualDurationMinutes = Math.floor(
         (checkOut.getTime() - checkIn.getTime()) / 60000
@@ -142,8 +145,8 @@ export default function CheckoutScreen() {
       if (paymentMethod === "offline") {
         // Thanh toán trực tiếp → checked_out ngay
         Alert.alert(
-          "Checkout thành công!",
-          "Bạn đã thanh toán trực tiếp. Cảm ơn bạn đã sử dụng dịch vụ.",
+          "Thanh toán trực tiếp",
+          `Hãy vui lòng ra cổng đưa mã này cho nhân viên và thanh toán:\n\n${reservation.reservation_code}`,
           [
             {
               text: "OK",
@@ -211,23 +214,7 @@ export default function CheckoutScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
-      <View className="flex-row items-center justify-between pt-12 pb-6 px-6">
-        <Pressable
-          onPress={() => router.back()}
-          className="h-12 w-12 items-center justify-center bg-white rounded-full shadow-sm"
-        >
-          <Ionicons name="chevron-back" size={24} color="#374151" />
-        </Pressable>
-        <View className="flex-1 items-center">
-          <Text className="text-2xl font-bold text-gray-800">CHECKOUT</Text>
-        </View>
-        <Pressable
-          onPress={() => router.push("/screens/tab/HomeScreen")}
-          className="h-12 w-12 items-center justify-center bg-white rounded-full shadow-sm"
-        >
-          <Ionicons name="home" size={24} color="#374151" />
-        </Pressable>
-      </View>
+      <PageHeader title="CHECKOUT" />
 
       <View style={{ padding: 24 }}>
         {/* Reservation Info */}
@@ -354,8 +341,7 @@ export default function CheckoutScreen() {
                   flex: 1,
                 }}
               >
-                Số tiền dưới 10.000đ chỉ có thể thanh toán trực tiếp tại bãi
-                xe
+                Số tiền dưới 10.000đ chỉ có thể thanh toán trực tiếp tại bãi xe
               </Text>
             </View>
           )}
@@ -443,4 +429,3 @@ export default function CheckoutScreen() {
     </ScrollView>
   );
 }
-

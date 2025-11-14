@@ -136,6 +136,7 @@ export async function resetPassword(
 ): Promise<void> {
   try {
     await apiAuth.post("/auth/forgot-password/reset", {
+      email,
       reset_token,
       password,
     });

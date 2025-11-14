@@ -12,6 +12,7 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { apiPayment } from "@/lib/api/client";
+import { PageHeader } from "../../components/common/PageHeader";
 
 type ReservationDetails = {
   id: number;
@@ -116,24 +117,11 @@ export default function ConfirmBookingScreen() {
         contentContainerClassName="flex-grow"
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View className="flex-row items-center justify-between pt-12 pb-6 px-6">
-          <Pressable
-            onPress={() => router.back()}
-            className="h-12 w-12 items-center justify-center bg-white rounded-full shadow-sm"
-          >
-            <Ionicons name="chevron-back" size={24} color="#374151" />
-          </Pressable>
-          <View className="flex-1 items-center">
-            <Text className="text-2xl font-bold text-gray-800">
-              Đặt chỗ thành công
-            </Text>
-            <Text className="text-sm text-gray-500 mt-1">
-              Thông tin đặt chỗ của bạn
-            </Text>
-          </View>
-          <View className="h-12 w-12" />
-        </View>
+        <PageHeader
+          title="Đặt chỗ thành công"
+          subtitle="Thông tin đặt chỗ của bạn"
+          showHome={false}
+        />
 
         {/* Reservation Info Card */}
         {reservation && (
