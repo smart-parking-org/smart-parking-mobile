@@ -57,14 +57,29 @@ export type Reservation = {
     id: number;
     amount: number;
     status: string; // 'PAID' hoặc 'PENDING'
+    meta?: {
+      payment_method?: string;
+      monthly_pass_id?: number;
+      is_free?: boolean;
+    };
   } | null;
+  monthly_pass?: {
+    id: number;
+    order_id: string;
+    end_date?: string;
+  } | null;
+  is_free?: boolean;
+  skip_payment?: boolean;
 };
 
 export async function createReservation(
   payload: CreateReservationPayload
 ): Promise<ReservationResponse> {
   try {
-    const response = await apiPayment.post<ReservationResponse>("/reservations", payload);
+    const response = await apiPayment.post<ReservationResponse>(
+      "/reservations",
+      payload
+    );
     return response.data;
   } catch (error: any) {
     throw error;
@@ -72,7 +87,9 @@ export async function createReservation(
 }
 
 // Lấy danh sách reservations của user hiện tại
-export async function getMyActiveReservations(userId: number): Promise<Reservation[]> {
+export async function getMyActiveReservations(
+  userId: number
+): Promise<Reservation[]> {
   try {
     const { data } = await apiPayment.get<{
       success: boolean;
@@ -87,20 +104,24 @@ export async function getMyActiveReservations(userId: number): Promise<Reservati
         // Không filter status ở đây, sẽ filter phía client
       },
     });
-    
-    console.log(`📋 Got ${data.data.reservations.length} total reservations for user ${userId}`);
-    
+
+    console.log(
+      `📋 Got ${data.data.reservations.length} total reservations for user ${userId}`
+    );
+
     // Filter phía client: chỉ lấy confirmed, checked_in và pending_checkout
     // Loại bỏ expired, cancelled, checked_out
     const activeReservations = data.data.reservations.filter(
       (r) =>
-        (r.status === "confirmed" ||
-          r.status === "checked_in" ||
-          r.status === "pending_payment" ||
-          r.status === "pending_checkout")
+        r.status === "confirmed" ||
+        r.status === "checked_in" ||
+        r.status === "pending_payment" ||
+        r.status === "pending_checkout"
     );
-    
-    console.log(`✅ Filtered to ${activeReservations.length} active reservations`);
+
+    console.log(
+      `✅ Filtered to ${activeReservations.length} active reservations`
+    );
     return activeReservations;
   } catch (error: any) {
     console.error("❌ Error getting reservations:", {
@@ -118,9 +139,12 @@ export async function checkOutReservation(
   paymentMethod: "online" | "offline" = "online"
 ) {
   try {
-    const response = await apiPayment.put(`/reservations/${reservationId}/check-out`, {
-      payment_method: paymentMethod,
-    });
+    const response = await apiPayment.put(
+      `/reservations/${reservationId}/check-out`,
+      {
+        payment_method: paymentMethod,
+      }
+    );
     return response.data;
   } catch (error: any) {
     console.error("❌ Error during checkout:", error);
@@ -195,6 +219,36 @@ export async function cancelReservation(reservationId: number) {
     return response.data;
   } catch (error: any) {
     console.error("❌ Error cancelling reservation:", error);
+    throw error;
+  }
+}
+
+// Check-in reservation
+export async function checkInReservation(reservationId: number) {
+  try {
+    const response = await apiPayment.put<{
+      success: boolean;
+      message: string;
+      data: {
+        reservation: Reservation;
+        checkout_code?: {
+          checkout_code: string;
+          status: string;
+          expires_at?: string;
+          qr_data: string;
+        };
+        monthly_pass?: {
+          id: number;
+          order_id: string;
+          end_date?: string;
+        } | null;
+        is_free?: boolean;
+        skip_payment?: boolean;
+      };
+    }>(`/reservations/${reservationId}/check-in`);
+    return response.data;
+  } catch (error: any) {
+    console.error("❌ Error checking in reservation:", error);
     throw error;
   }
 }

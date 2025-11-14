@@ -36,6 +36,13 @@ type ReservationDetails = {
   };
   start_time: string;
   end_time: string;
+  // Monthly pass từ response checkout (optional)
+  monthly_pass?: {
+    id: number;
+    order_id: string;
+    end_date?: string;
+  } | null;
+  is_free?: boolean;
 };
 
 export default function CheckoutScreen() {
@@ -128,8 +135,8 @@ export default function CheckoutScreen() {
   };
 
   const handleCheckout = async (paymentMethod: "online" | "offline") => {
-    if (!reservation || amount === 0 || !reservationId) {
-      Alert.alert("Lỗi", "Số tiền thanh toán không hợp lệ");
+    if (!reservation || !reservationId) {
+      Alert.alert("Lỗi", "Thông tin đặt chỗ không hợp lệ");
       return;
     }
 
@@ -142,8 +149,29 @@ export default function CheckoutScreen() {
         paymentMethod
       );
 
+      // ✅ Kiểm tra monthly pass từ response checkout (giống như check-in)
+      const monthlyPass = response.data?.data?.monthly_pass;
+      const isFree = response.data?.data?.is_free;
+
+      if (monthlyPass && isFree) {
+        // Có monthly pass → đã checkout thành công, không cần thanh toán
+        Alert.alert(
+          "Check-out thành công",
+          "Vé tháng của bạn đã được áp dụng. Bạn không cần thanh toán.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                router.replace("/screens/tab/QRScreen");
+              },
+            },
+          ]
+        );
+        return;
+      }
+
       if (paymentMethod === "offline") {
-        // Thanh toán trực tiếp → checked_out ngay
+        // Thanh toán trực tiếp → pending_checkout, chờ nhân viên quét
         Alert.alert(
           "Thanh toán trực tiếp",
           `Hãy vui lòng ra cổng đưa mã này cho nhân viên và thanh toán:\n\n${reservation.reservation_code}`,
@@ -157,7 +185,7 @@ export default function CheckoutScreen() {
           ]
         );
       } else {
-        // Thanh toán online → pending_checkout → Navigate tới PaymentScreen
+        // Thanh toán online → pending_payment → Navigate tới PaymentScreen
         router.replace({
           pathname: "/screens/reservations/PaymentScreen",
           params: {

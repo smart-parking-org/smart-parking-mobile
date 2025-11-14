@@ -17,6 +17,7 @@ import {
   expireDue,
   extendReservation,
   cancelReservation,
+  checkInReservation,
 } from "../../../lib/api/booking";
 import { PageHeader } from "../../components/common/PageHeader";
 
@@ -237,6 +238,58 @@ export default function QRCheckinScreen() {
             const errorMessage =
               e.response?.data?.message ||
               "Không thể hủy đặt chỗ. Vui lòng thử lại.";
+            Alert.alert("Lỗi", errorMessage);
+          } finally {
+            setActionLoading(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleCheckIn = async () => {
+    if (!reservation || !bookingId) return;
+
+    Alert.alert("Check-in", "Bạn có muốn check-in vào bãi đỗ không?", [
+      { text: "Hủy", style: "cancel" },
+      {
+        text: "Xác nhận",
+        onPress: async () => {
+          try {
+            setActionLoading(true);
+            const response = await checkInReservation(parseInt(bookingId));
+            
+            // ✅ Kiểm tra nếu có monthly pass và checkout code
+            if (response.data?.skip_payment && response.data?.checkout_code) {
+              // Có vé tháng → chuyển thẳng sang trang checkout QR
+              Alert.alert(
+                "Check-in thành công",
+                "Vé tháng của bạn đã được áp dụng. Vui lòng quét mã checkout khi ra khỏi bãi đỗ.",
+                [
+                  {
+                    text: "OK",
+                    onPress: () => {
+                      router.replace({
+                        pathname: "/screens/reservations/QRCheckoutScreen",
+                        params: {
+                          reservationId: String(bookingId),
+                          checkoutCode: response.data.checkout_code?.checkout_code,
+                        },
+                      });
+                    },
+                  },
+                ]
+              );
+            } else {
+              // Không có vé tháng → reload để cập nhật status
+              Alert.alert("Thành công", "Check-in thành công");
+              await load();
+            }
+          } catch (e: any) {
+            console.error("Error checking in reservation:", e);
+            const errorMessage =
+              e.response?.data?.message ||
+              "Không thể check-in. Vui lòng thử lại.";
             Alert.alert("Lỗi", errorMessage);
           } finally {
             setActionLoading(false);
@@ -474,6 +527,70 @@ export default function QRCheckinScreen() {
             {/* Action Buttons */}
             {reservation && reservation.status === "confirmed" && (
               <View className="mb-8">
+                {/* Check-in button */}
+                <Pressable
+                  onPress={handleCheckIn}
+                  disabled={actionLoading}
+                  style={({ pressed }) => [
+                    {
+                      transform: [{ scale: pressed ? 0.97 : 1 }],
+                      opacity: actionLoading ? 0.7 : 1,
+                      borderRadius: 16,
+                      overflow: "hidden",
+                      marginBottom: 12,
+                    },
+                  ]}
+                >
+                  {actionLoading ? (
+                    <View
+                      className="py-4 px-6"
+                      style={{ backgroundColor: "#e5e7eb" }}
+                    >
+                      <ActivityIndicator size="small" color="#6b7280" />
+                    </View>
+                  ) : (
+                    <LinearGradient
+                      colors={["#3b82f6", "#2563eb"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={{
+                        paddingVertical: 16,
+                        paddingHorizontal: 24,
+                        borderRadius: 16,
+                      }}
+                    >
+                      <View className="flex-row items-center">
+                        <View
+                          className="rounded-full p-2"
+                          style={{
+                            backgroundColor: "rgba(255, 255, 255, 0.3)",
+                          }}
+                        >
+                          <Ionicons
+                            name="checkmark-circle-outline"
+                            size={22}
+                            color="white"
+                          />
+                        </View>
+                        <View className="flex-1 ml-4">
+                          <Text
+                            className="font-bold text-base"
+                            style={{ color: "#ffffff" }}
+                          >
+                            Check-in vào bãi đỗ
+                          </Text>
+                        </View>
+                        <Ionicons
+                          name="chevron-forward"
+                          size={20}
+                          color="white"
+                          style={{ opacity: 0.9 }}
+                        />
+                      </View>
+                    </LinearGradient>
+                  )}
+                </Pressable>
+
                 {/* Gia hạn button */}
                 <Pressable
                   onPress={handleExtend}

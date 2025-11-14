@@ -31,18 +31,24 @@ type ReservationData = {
     status: string; // 'PAID' hoặc 'PENDING'
     meta?: {
       payment_method?: string; // 'online' hoặc 'offline'
+      is_free?: boolean;
+      monthly_pass_id?: number;
     };
   } | null;
 };
 
 export default function QRCheckoutScreen() {
-  const { reservationId } = useLocalSearchParams<{
+  const { reservationId, checkoutCode } = useLocalSearchParams<{
     reservationId: string;
+    checkoutCode?: string;
   }>();
 
   const [loading, setLoading] = useState(true);
   const [reservation, setReservation] = useState<ReservationData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [checkoutCodeFromAPI, setCheckoutCodeFromAPI] = useState<string | null>(
+    checkoutCode || null
+  );
 
   const load = useCallback(async () => {
     if (!reservationId) return;
@@ -61,8 +67,32 @@ export default function QRCheckoutScreen() {
       const isOfflinePayment =
         reservationData.payment?.meta?.payment_method === "offline";
       const isPaid = reservationData.payment?.status === "PAID";
+      const isMonthlyPass = reservationData.payment?.meta?.is_free === true;
 
-      if (!isOfflinePayment && !isPaid) {
+      // ✅ Nếu có checkoutCode từ params (từ check-in với monthly pass), sử dụng nó
+      if (checkoutCode && !checkoutCodeFromAPI) {
+        setCheckoutCodeFromAPI(checkoutCode);
+      } else if ((isPaid || isMonthlyPass) && !checkoutCodeFromAPI) {
+        // Nếu đã thanh toán hoặc có monthly pass, thử lấy checkout code từ API
+        try {
+          const checkoutResponse = await apiPayment.get<{
+            success: boolean;
+            data: {
+              checkout_code: string;
+              status: string;
+              expires_at?: string;
+              qr_data: string;
+            };
+          }>(`/reservations/${reservationId}/checkout-code`);
+          if (checkoutResponse.data.data?.checkout_code) {
+            setCheckoutCodeFromAPI(checkoutResponse.data.data.checkout_code);
+          }
+        } catch (e) {
+          console.log("No checkout code available yet");
+        }
+      }
+
+      if (!isOfflinePayment && !isPaid && !isMonthlyPass) {
         Alert.alert(
           "Lỗi",
           "Vui lòng thanh toán trước để nhận mã QR checkout.",
@@ -75,8 +105,6 @@ export default function QRCheckoutScreen() {
         );
         return;
       }
-
-      // Không cần load checkout_code nữa, sử dụng reservation_code
     } catch (e: any) {
       console.error("Error loading reservation:", e);
       Alert.alert(
@@ -202,16 +230,30 @@ export default function QRCheckoutScreen() {
                 </View>
               </View>
 
-              {/* Sử dụng reservation_code thay vì checkout_code */}
-              {reservation.reservation_code ? (
+              {/* Sử dụng checkout_code nếu có, nếu không thì dùng reservation_code */}
+              {checkoutCodeFromAPI || reservation.reservation_code ? (
                 <View className="items-center">
                   <View className="bg-white p-4 rounded-2xl shadow-sm border-2 border-gray-100">
-                    <QRCode value={reservation.reservation_code} size={200} />
+                    <QRCode
+                      value={
+                        checkoutCodeFromAPI ||
+                        reservation.reservation_code ||
+                        ""
+                      }
+                      size={200}
+                    />
                   </View>
                   <Text className="mt-4 text-gray-600 text-center text-sm leading-5 px-4">
                     Đưa QR này cho nhân viên hoặc máy quét tại cổng ra để hoàn
                     tất checkout
                   </Text>
+                  {checkoutCodeFromAPI && (
+                    <View className="mt-2 px-4 py-2 bg-green-100 rounded-full">
+                      <Text className="text-green-800 font-medium text-xs">
+                        Vé tháng đã được áp dụng - Miễn phí
+                      </Text>
+                    </View>
+                  )}
                 </View>
               ) : (
                 <View className="items-center py-8">

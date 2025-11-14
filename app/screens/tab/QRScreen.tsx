@@ -120,57 +120,61 @@ export default function QRScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: Reservation }) => (
-    <View className="bg-white rounded-3xl shadow-lg p-6 mb-6 mx-2">
-      {/* Header */}
-      <View className="flex-row items-center mb-6">
-        <View className="bg-blue-100 p-3 rounded-full mr-4">
-          <Ionicons name="qr-code" size={24} color="#3b82f6" />
-        </View>
-        <View className="flex-1">
-          <Text className="text-lg font-bold text-gray-800">
-            {item.reservation_code}
-          </Text>
-          <Text className="text-sm text-gray-500">
-            {item.slot?.slot_code || "N/A"} •{" "}
-            {getVehicleTypeLabel(item.vehicle_snapshot?.vehicle_type)}
-          </Text>
-        </View>
-        {/* Status badge */}
-        <View
-          className={`px-3 py-1 rounded-full ${
-            item.status === "checked_in"
-              ? "bg-blue-100"
-              : item.status === "pending_checkout" ||
-                item.status === "pending_payment"
-              ? "bg-amber-100"
-              : "bg-green-100"
-          }`}
-        >
-          <Text
-            className={`font-semibold text-sm ${
+  const renderItem = ({ item }: { item: Reservation }) => {
+    // ✅ Kiểm tra có monthly pass không
+    const hasMonthlyPass = item.payment?.meta?.is_free === true || item.is_free === true;
+    const isCheckedInWithMonthlyPass = item.status === "checked_in" && hasMonthlyPass;
+
+    return (
+      <View className="bg-white rounded-3xl shadow-lg p-6 mb-6 mx-2">
+        {/* Header */}
+        <View className="flex-row items-center mb-6">
+          <View className="bg-blue-100 p-3 rounded-full mr-4">
+            <Ionicons name="qr-code" size={24} color="#3b82f6" />
+          </View>
+          <View className="flex-1">
+            <Text className="text-lg font-bold text-gray-800">
+              {item.reservation_code}
+            </Text>
+            <Text className="text-sm text-gray-500">
+              {item.slot?.slot_code || "N/A"} •{" "}
+              {getVehicleTypeLabel(item.vehicle_snapshot?.vehicle_type)}
+            </Text>
+          </View>
+          {/* Status badge */}
+          <View
+            className={`px-3 py-1 rounded-full ${
               item.status === "checked_in"
-                ? "text-blue-800"
+                ? "bg-blue-100"
                 : item.status === "pending_checkout" ||
                   item.status === "pending_payment"
-                ? "text-amber-800"
-                : "text-green-800"
+                ? "bg-amber-100"
+                : "bg-green-100"
             }`}
           >
-            {item.status === "checked_in"
-              ? "Đã check-in"
-              : item.status === "pending_payment"
-              ? "Chờ thanh toán"
-              : item.status === "pending_checkout"
-              ? "Chờ check out"
-              : "Đã xác nhận"}
-          </Text>
+            <Text
+              className={`font-semibold text-sm ${
+                item.status === "checked_in"
+                  ? "text-blue-800"
+                  : item.status === "pending_checkout" ||
+                    item.status === "pending_payment"
+                  ? "text-amber-800"
+                  : "text-green-800"
+              }`}
+            >
+              {item.status === "checked_in"
+                ? "Đã check-in"
+                : item.status === "pending_payment"
+                ? "Chờ thanh toán"
+                : item.status === "pending_checkout"
+                ? "Chờ check out"
+                : "Đã xác nhận"}
+            </Text>
+          </View>
         </View>
-      </View>
 
-      {/* QR Code - Chỉ hiển thị khi status là confirmed hoặc checked_in */}
-      {item.status !== "pending_checkout" &&
-        item.status !== "pending_payment" && (
+        {/* QR Code - Chỉ hiển thị khi status là confirmed và KHÔNG có monthly pass */}
+        {item.status === "confirmed" && !hasMonthlyPass && (
           <View className="items-center mb-6">
             <View className="bg-white p-4 rounded-2xl shadow-sm border-2 border-gray-100">
               <QRCode value={qrPayload(item)} size={160} />
@@ -178,6 +182,23 @@ export default function QRScreen() {
             <Text className="mt-3 text-gray-600 text-center text-sm">
               Quét mã này để check-in
             </Text>
+          </View>
+        )}
+
+        {/* ✅ Thông báo cho checked_in với monthly pass */}
+        {isCheckedInWithMonthlyPass && (
+          <View className="items-center mb-6">
+            <View className="bg-green-50 p-4 rounded-2xl border-2 border-green-200 w-full">
+              <View className="flex-row items-center justify-center mb-2">
+                <Ionicons name="checkmark-circle" size={24} color="#10b981" />
+                <Text className="text-green-800 font-bold ml-2">
+                  Vé tháng đã được áp dụng
+                </Text>
+              </View>
+              <Text className="text-green-700 text-center text-sm">
+                Bạn có thể quét mã QR checkout khi ra khỏi bãi đỗ
+              </Text>
+            </View>
           </View>
         )}
 
@@ -298,9 +319,27 @@ export default function QRScreen() {
           </View>
         </Pressable>
 
-        {/* Nút Thanh toán - hiển thị khi checked_in hoặc pending_payment */}
+        {/* ✅ Nút Xem QR Checkout - hiển thị khi checked_in với monthly pass */}
+        {isCheckedInWithMonthlyPass && (
+          <Pressable
+            onPress={() => onGetCheckoutCode(item)}
+            className="flex-1 h-12 rounded-2xl items-center justify-center bg-green-500"
+            style={({ pressed }) => [
+              {
+                transform: [{ scale: pressed ? 0.98 : 1 }],
+              },
+            ]}
+          >
+            <View className="flex-row items-center justify-center">
+              <Ionicons name="qr-code" size={20} color="white" />
+              <Text className="text-white font-bold ml-2">QR Checkout</Text>
+            </View>
+          </Pressable>
+        )}
+
+        {/* Nút Thanh toán - chỉ hiển thị khi checked_in hoặc pending_payment và KHÔNG có monthly pass */}
         {(item.status === "checked_in" ||
-          item.status === "pending_payment") && (
+          item.status === "pending_payment") && !hasMonthlyPass && (
           <Pressable
             onPress={() => onCheckout(item)}
             className="flex-1 h-12 rounded-2xl items-center justify-center bg-green-400"
@@ -334,6 +373,7 @@ export default function QRScreen() {
       </View>
     </View>
   );
+  };
 
   if (loading) {
     return (
