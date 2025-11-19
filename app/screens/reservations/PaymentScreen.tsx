@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { apiPayment } from "@/lib/api/client";
 import * as ExpoLinking from "expo-linking"; // ✅ Đổi tên thành ExpoLinking
 import { PageHeader } from "../../components/common/PageHeader";
+import { checkOutReservation } from "@/lib/api/booking";
 
 type ReservationDetails = {
   id: number;
@@ -324,6 +325,76 @@ export default function PaymentScreen() {
       )
     : 0;
 
+  const handleCheckout = async (paymentMethod: "online" | "offline") => {
+    if (!reservation || !reservationId) {
+      Alert.alert("Lỗi", "Thông tin đặt chỗ không hợp lệ");
+      return;
+    }
+
+    try {
+      setProcessing(true);
+
+      // Gọi API checkout với payment_method
+      const response = await checkOutReservation(
+        parseInt(reservationId),
+        paymentMethod
+      );
+
+      // ✅ Kiểm tra monthly pass từ response checkout (giống như check-in)
+      const monthlyPass = response.data?.data?.monthly_pass;
+      const isFree = response.data?.data?.is_free;
+
+      if (monthlyPass && isFree) {
+        // Có monthly pass → đã checkout thành công, không cần thanh toán
+        Alert.alert(
+          "Check-out thành công",
+          "Vé tháng của bạn đã được áp dụng. Bạn không cần thanh toán.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                router.replace("/screens/tab/QRScreen");
+              },
+            },
+          ]
+        );
+        return;
+      }
+
+      if (paymentMethod === "offline") {
+        // Thanh toán trực tiếp → pending_checkout, chờ nhân viên quét
+        Alert.alert(
+          "Thanh toán trực tiếp",
+          `Hãy vui lòng ra cổng đưa mã này cho nhân viên và thanh toán:\n\n${reservation.reservation_code}`,
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                router.replace("/screens/tab/QRScreen");
+              },
+            },
+          ]
+        );
+      } else {
+        // Thanh toán online → pending_payment → Navigate tới PaymentScreen
+        router.replace({
+          pathname: "/screens/reservations/PaymentScreen",
+          params: {
+            reservationId: reservationId,
+          },
+        });
+      }
+    } catch (error: any) {
+      console.error("Error during checkout:", error);
+      Alert.alert(
+        "Lỗi",
+        error.response?.data?.message || "Không thể thực hiện checkout"
+      );
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
       <PageHeader title="THANH TOÁN" />
@@ -468,6 +539,7 @@ export default function PaymentScreen() {
         </View>
 
         {/* Button thanh toán */}
+
         <TouchableOpacity
           onPress={handlePayment}
           disabled={processing}
@@ -494,6 +566,38 @@ export default function PaymentScreen() {
                 Thanh toán trực tuyến
               </Text>
             </View>
+          )}
+        </TouchableOpacity>
+
+        <View style={{ marginTop: 10, alignItems: "center" }}></View>
+        <TouchableOpacity
+          onPress={() => handleCheckout("offline")}
+          disabled={processing}
+          style={{
+            backgroundColor: processing ? "#9ca3af" : "#3b82f6",
+            borderRadius: 12,
+            padding: 16,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {processing ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <>
+              <Ionicons name="cash" size={24} color="white" />
+              <Text
+                style={{
+                  color: "white",
+                  fontWeight: "bold",
+                  fontSize: 18,
+                  marginLeft: 8,
+                }}
+              >
+                Thanh toán trực tiếp
+              </Text>
+            </>
           )}
         </TouchableOpacity>
 

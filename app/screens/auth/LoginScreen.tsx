@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { Link, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { login } from "@/lib/api/auth";
+import { login, getProfile } from "@/lib/api/auth";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("nphutai49@gmail.com");
@@ -30,7 +30,15 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       await login(e, p); // hàm này đã lưu token
-      router.replace("/screens/tab/HomeScreen"); // đổi route nếu khác
+      const profile = await getProfile();
+      const userData = profile?.data ?? profile;
+      const role = userData?.role?.toLowerCase?.();
+
+      if (role === "staff") {
+        router.replace("/screens/staff/SendNotificationScreen");
+      } else {
+        router.replace("/screens/tab/HomeScreen"); // đổi route nếu khác
+      }
     } catch (err: any) {
       Alert.alert("Lỗi", err.message);
     } finally {

@@ -8,7 +8,7 @@ import {
   RefreshControl,
   ScrollView,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import QRCode from "react-native-qrcode-svg";
 import { LinearGradient } from "expo-linear-gradient";
@@ -20,6 +20,7 @@ import {
   checkInReservation,
 } from "../../../lib/api/booking";
 import { PageHeader } from "../../components/common/PageHeader";
+import { AppColor } from "@/lib/utils/color";
 
 type ReservationData = {
   id: number;
@@ -187,7 +188,7 @@ export default function QRCheckinScreen() {
   const handleExtend = async () => {
     if (!reservation || !bookingId || hasExtended) return;
 
-    Alert.alert("Gia hạn đặt chỗ", "Bạn có muốn gia hạn thêm 15 phút không?", [
+    Alert.alert("Gia hạn đặt chỗ", "Bạn có muốn gia hạn không?", [
       { text: "Hủy", style: "cancel" },
       {
         text: "Xác nhận",
@@ -196,7 +197,7 @@ export default function QRCheckinScreen() {
             setActionLoading(true);
             await extendReservation(parseInt(bookingId), 15);
             setHasExtended(true); // Đánh dấu đã gia hạn
-            Alert.alert("Thành công", "Đã gia hạn đặt chỗ thêm 15 phút");
+            Alert.alert("Thành công", "Đã gia hạn đặt chỗ");
             hasExpiredCalled.current = false; // Reset để có thể gọi lại expire nếu cần
             await load();
           } catch (e: any) {
@@ -258,7 +259,7 @@ export default function QRCheckinScreen() {
           try {
             setActionLoading(true);
             const response = await checkInReservation(parseInt(bookingId));
-            
+
             // ✅ Kiểm tra nếu có monthly pass và checkout code
             if (response.data?.skip_payment && response.data?.checkout_code) {
               // Có vé tháng → chuyển thẳng sang trang checkout QR
@@ -273,7 +274,8 @@ export default function QRCheckinScreen() {
                         pathname: "/screens/reservations/QRCheckoutScreen",
                         params: {
                           reservationId: String(bookingId),
-                          checkoutCode: response.data.checkout_code?.checkout_code,
+                          checkoutCode:
+                            response.data.checkout_code?.checkout_code,
                         },
                       });
                     },
@@ -300,235 +302,253 @@ export default function QRCheckinScreen() {
   };
 
   return (
-    <View className="flex-1">
-      <PageHeader
-        title="QR CHECK-IN"
-        subtitle=""
-        homeRoute="/screens/tab/QRScreen"
+    <>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: "CHI TIẾT ĐẶT CHỖ",
+          headerTitleAlign: "center",
+          headerStyle: { backgroundColor: AppColor.PRIMARY },
+          headerShadowVisible: false,
+          headerTitleStyle: {
+            fontWeight: "800",
+            fontSize: 16,
+            color: "#fff",
+          },
+          headerTintColor: "#fff",
+          headerBackVisible: true,
+        }}
       />
-      <ScrollView
-        className="flex-1 bg-gradient-to-br from-blue-50 to-indigo-100"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
-      >
-        {loading ? (
-          <View className="flex-1 items-center justify-center px-6">
-            <View className="bg-white p-8 rounded-3xl shadow-lg items-center">
-              <ActivityIndicator size="large" color="#3b82f6" />
-              <Text className="mt-4 text-gray-700 font-medium text-center">
-                Đang tải thông tin đặt chỗ...
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <View className="px-6 mt-6">
-            {/* QR Code Section */}
-            <View className="bg-white rounded-3xl shadow-lg p-6 mb-6">
-              <View className="items-center">
-                <View className="flex-row items-center mb-6">
-                  <View className="bg-blue-100 p-3 rounded-full mr-4">
-                    <Ionicons name="qr-code" size={24} color="#3b82f6" />
-                  </View>
-                  <View>
-                    <Text className="text-lg font-bold text-gray-800">
-                      Mã QR Check-in
-                    </Text>
-                    <Text className="text-sm text-gray-500">
-                      Hiển thị cho nhân viên hoặc máy quét
-                    </Text>
-                  </View>
-                </View>
-
-                {qr && ttl > 0 && reservation?.status === "confirmed" ? (
-                  <View className="items-center">
-                    <View className="bg-white p-4 rounded-2xl shadow-sm border-2 border-gray-100">
-                      <QRCode value={qr} size={200} />
-                    </View>
-                    <Text className="mt-4 text-gray-600 text-center text-sm leading-5 px-4">
-                      Đưa QR này cho nhân viên hoặc máy quét để check-in vào bãi
-                      xe
-                    </Text>
-                    <View className="mt-2 px-4 py-2 bg-amber-100 rounded-full">
-                      <Text className="text-amber-800 font-medium text-xs">
-                        Hết hạn sau {formatSeconds(ttl)}
-                      </Text>
-                    </View>
-                  </View>
-                ) : (
-                  <View className="items-center py-8">
-                    <View className="bg-red-100 p-4 rounded-full mb-4">
-                      <Ionicons name="alert-circle" size={32} color="#ef4444" />
-                    </View>
-                    <Text className="text-red-600 font-medium text-center">
-                      {reservation?.status === "expired" ||
-                      reservation?.status === "checked_in"
-                        ? "QR Code đã hết hạn hoặc đang check-in"
-                        : "QR Code không khả dụng"}
-                    </Text>
-                    <Text className="text-red-500 text-sm text-center mt-2">
-                      {reservation?.status === "expired"
-                        ? "Vui lòng làm mới hoặc đặt chỗ mới"
-                        : reservation?.status === "checked_in"
-                        ? "Trạng thái: " + "Đã check-in"
-                        : "Trạng thái: " + reservation?.status}
-                    </Text>
-                  </View>
-                )}
+      <View className="flex-1">
+        <ScrollView
+          className="flex-1 bg-gradient-to-br from-blue-50 to-indigo-100"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          showsVerticalScrollIndicator={false}
+        >
+          {loading ? (
+            <View className="flex-1 items-center justify-center px-6">
+              <View className="bg-white p-8 rounded-3xl shadow-lg items-center">
+                <ActivityIndicator size="large" color="#3b82f6" />
+                <Text className="mt-4 text-gray-700 font-medium text-center">
+                  Đang tải thông tin đặt chỗ...
+                </Text>
               </View>
             </View>
-
-            {/* Booking Details Card */}
-            {reservation && (
+          ) : (
+            <View className="px-6 mt-6">
+              {/* QR Code Section */}
               <View className="bg-white rounded-3xl shadow-lg p-6 mb-6">
-                <View className="flex-row items-center mb-6">
-                  <View className="bg-green-100 p-3 rounded-full mr-4">
-                    <Ionicons name="receipt" size={24} color="#10b981" />
-                  </View>
-                  <View>
-                    <Text className="text-lg font-bold text-gray-800">
-                      Thông tin đặt chỗ
-                    </Text>
-                    <Text className="text-sm text-gray-500">
-                      Chi tiết booking của bạn
-                    </Text>
-                  </View>
-                </View>
-
-                <View className="space-y-4">
-                  <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
-                    <View className="flex-row items-center">
-                      <Ionicons name="barcode" size={20} color="#6b7280" />
-                      <Text className="text-gray-600 font-medium ml-3">
-                        Mã đặt chỗ
+                <View className="items-center">
+                  <View className="flex-row items-center mb-6">
+                    <View className="bg-blue-100 p-3 rounded-full mr-4">
+                      <Ionicons name="qr-code" size={24} color="#3b82f6" />
+                    </View>
+                    <View>
+                      <Text className="text-lg font-bold text-gray-800">
+                        Mã QR Check-in
+                      </Text>
+                      <Text className="text-sm text-gray-500">
+                        Hiển thị cho nhân viên hoặc máy quét
                       </Text>
                     </View>
-                    <Text className="text-gray-800 font-semibold text-base">
-                      {reservation.reservation_code}
-                    </Text>
                   </View>
 
-                  {reservation.slot && (
+                  {qr && ttl > 0 && reservation?.status === "confirmed" ? (
+                    <View className="items-center">
+                      <View className="bg-white p-4 rounded-2xl shadow-sm border-2 border-gray-100">
+                        <QRCode value={qr} size={200} />
+                      </View>
+                      <Text className="mt-4 text-gray-600 text-center text-sm leading-5 px-4">
+                        Đưa QR này cho nhân viên hoặc máy quét để check-in vào
+                        bãi xe
+                      </Text>
+                      <View className="mt-2 px-4 py-2 bg-amber-100 rounded-full">
+                        <Text className="text-amber-800 font-medium text-xs">
+                          Hết hạn sau {formatSeconds(ttl)}
+                        </Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <View className="items-center py-8">
+                      <View className="bg-red-100 p-4 rounded-full mb-4">
+                        <Ionicons
+                          name="alert-circle"
+                          size={32}
+                          color="#ef4444"
+                        />
+                      </View>
+                      <Text className="text-red-600 font-medium text-center">
+                        {reservation?.status === "expired" ||
+                        reservation?.status === "checked_in"
+                          ? "QR Code đã hết hạn hoặc đang check-in"
+                          : "QR Code không khả dụng"}
+                      </Text>
+                      <Text className="text-red-500 text-sm text-center mt-2">
+                        {reservation?.status === "expired"
+                          ? "Vui lòng làm mới hoặc đặt chỗ mới"
+                          : reservation?.status === "checked_in"
+                          ? "Trạng thái: " + "Đã check-in"
+                          : "Trạng thái: " + reservation?.status}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              {/* Booking Details Card */}
+              {reservation && (
+                <View className="bg-white rounded-3xl shadow-lg p-6 mb-6">
+                  <View className="flex-row items-center mb-6">
+                    <View className="bg-green-100 p-3 rounded-full mr-4">
+                      <Ionicons name="receipt" size={24} color="#10b981" />
+                    </View>
+                    <View>
+                      <Text className="text-lg font-bold text-gray-800">
+                        Thông tin đặt chỗ
+                      </Text>
+                      <Text className="text-sm text-gray-500">
+                        Chi tiết booking của bạn
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View className="space-y-4">
                     <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
                       <View className="flex-row items-center">
-                        <Ionicons name="location" size={20} color="#6b7280" />
+                        <Ionicons name="barcode" size={20} color="#6b7280" />
                         <Text className="text-gray-600 font-medium ml-3">
-                          Vị trí
+                          Mã đặt chỗ
                         </Text>
                       </View>
                       <Text className="text-gray-800 font-semibold text-base">
-                        {reservation.slot.slot_code}
+                        {reservation.reservation_code}
                       </Text>
                     </View>
-                  )}
 
-                  {reservation.vehicle_snapshot && (
-                    <>
+                    {reservation.slot && (
                       <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
                         <View className="flex-row items-center">
-                          <Ionicons
-                            name={getVehicleIcon(
+                          <Ionicons name="location" size={20} color="#6b7280" />
+                          <Text className="text-gray-600 font-medium ml-3">
+                            Vị trí
+                          </Text>
+                        </View>
+                        <Text className="text-gray-800 font-semibold text-base">
+                          {reservation.slot.slot_code}
+                        </Text>
+                      </View>
+                    )}
+
+                    {reservation.vehicle_snapshot && (
+                      <>
+                        <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
+                          <View className="flex-row items-center">
+                            <Ionicons
+                              name={getVehicleIcon(
+                                reservation.vehicle_snapshot.vehicle_type
+                              )}
+                              size={20}
+                              color="#6b7280"
+                            />
+                            <Text className="text-gray-600 font-medium ml-3">
+                              Loại xe
+                            </Text>
+                          </View>
+                          <Text className="text-gray-800 font-semibold text-base">
+                            {getVehicleTypeLabel(
                               reservation.vehicle_snapshot.vehicle_type
                             )}
-                            size={20}
-                            color="#6b7280"
-                          />
-                          <Text className="text-gray-600 font-medium ml-3">
-                            Loại xe
                           </Text>
                         </View>
-                        <Text className="text-gray-800 font-semibold text-base">
-                          {getVehicleTypeLabel(
-                            reservation.vehicle_snapshot.vehicle_type
-                          )}
-                        </Text>
-                      </View>
 
-                      <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
-                        <View className="flex-row items-center">
-                          <Ionicons name="card" size={20} color="#6b7280" />
-                          <Text className="text-gray-600 font-medium ml-3">
-                            Biển số
+                        <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
+                          <View className="flex-row items-center">
+                            <Ionicons name="card" size={20} color="#6b7280" />
+                            <Text className="text-gray-600 font-medium ml-3">
+                              Biển số
+                            </Text>
+                          </View>
+                          <Text className="text-gray-800 font-semibold text-base">
+                            {reservation.vehicle_snapshot.license_plate}
                           </Text>
                         </View>
-                        <Text className="text-gray-800 font-semibold text-base">
-                          {reservation.vehicle_snapshot.license_plate}
+                      </>
+                    )}
+
+                    <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
+                      <View className="flex-row items-center">
+                        <Ionicons name="time" size={20} color="#6b7280" />
+                        <Text className="text-gray-600 font-medium ml-3">
+                          Bắt đầu
                         </Text>
                       </View>
-                    </>
-                  )}
-
-                  <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
-                    <View className="flex-row items-center">
-                      <Ionicons name="time" size={20} color="#6b7280" />
-                      <Text className="text-gray-600 font-medium ml-3">
-                        Bắt đầu
+                      <Text className="text-gray-800 font-semibold text-base">
+                        {new Date(reservation.start_time).toLocaleString(
+                          "vi-VN"
+                        )}
                       </Text>
                     </View>
-                    <Text className="text-gray-800 font-semibold text-base">
-                      {new Date(reservation.start_time).toLocaleString("vi-VN")}
-                    </Text>
-                  </View>
 
-                  <View className="flex-row items-center justify-between py-3">
-                    <View className="flex-row items-center">
-                      <Ionicons
-                        name={
+                    <View className="flex-row items-center justify-between py-3">
+                      <View className="flex-row items-center">
+                        <Ionicons
+                          name={
+                            reservation.status === "confirmed"
+                              ? "checkmark-circle"
+                              : reservation.status === "checked_in"
+                              ? "car"
+                              : "time"
+                          }
+                          size={20}
+                          color={
+                            reservation.status === "confirmed"
+                              ? "#10b981"
+                              : reservation.status === "checked_in"
+                              ? "#3b82f6"
+                              : "#f59e0b"
+                          }
+                        />
+                        <Text className="text-gray-600 font-medium ml-3">
+                          Trạng thái
+                        </Text>
+                      </View>
+                      <View
+                        className={`px-3 py-1 rounded-full ${
                           reservation.status === "confirmed"
-                            ? "checkmark-circle"
+                            ? "bg-green-100"
                             : reservation.status === "checked_in"
-                            ? "car"
-                            : "time"
-                        }
-                        size={20}
-                        color={
-                          reservation.status === "confirmed"
-                            ? "#10b981"
-                            : reservation.status === "checked_in"
-                            ? "#3b82f6"
-                            : "#f59e0b"
-                        }
-                      />
-                      <Text className="text-gray-600 font-medium ml-3">
-                        Trạng thái
-                      </Text>
-                    </View>
-                    <View
-                      className={`px-3 py-1 rounded-full ${
-                        reservation.status === "confirmed"
-                          ? "bg-green-100"
-                          : reservation.status === "checked_in"
-                          ? "bg-blue-100"
-                          : "bg-yellow-100"
-                      }`}
-                    >
-                      <Text
-                        className={`font-semibold text-sm ${
-                          reservation.status === "confirmed"
-                            ? "text-green-800"
-                            : reservation.status === "checked_in"
-                            ? "text-blue-800"
-                            : "text-yellow-800"
+                            ? "bg-blue-100"
+                            : "bg-yellow-100"
                         }`}
                       >
-                        {reservation.status === "confirmed"
-                          ? "Đã xác nhận"
-                          : reservation.status === "checked_in"
-                          ? "Đã check-in"
-                          : reservation.status}
-                      </Text>
+                        <Text
+                          className={`font-semibold text-sm ${
+                            reservation.status === "confirmed"
+                              ? "text-green-800"
+                              : reservation.status === "checked_in"
+                              ? "text-blue-800"
+                              : "text-yellow-800"
+                          }`}
+                        >
+                          {reservation.status === "confirmed"
+                            ? "Đã xác nhận"
+                            : reservation.status === "checked_in"
+                            ? "Đã check-in"
+                            : reservation.status}
+                        </Text>
+                      </View>
                     </View>
                   </View>
                 </View>
-              </View>
-            )}
+              )}
 
-            {/* Action Buttons */}
-            {reservation && reservation.status === "confirmed" && (
-              <View className="mb-8">
-                {/* Check-in button */}
-                <Pressable
+              {/* Action Buttons */}
+              {reservation && reservation.status === "confirmed" && (
+                <View className="mb-8">
+                  {/* Check-in button */}
+                  {/* <Pressable
                   onPress={handleCheckIn}
                   disabled={actionLoading}
                   style={({ pressed }) => [
@@ -589,201 +609,202 @@ export default function QRCheckinScreen() {
                       </View>
                     </LinearGradient>
                   )}
-                </Pressable>
+                </Pressable> */}
 
-                {/* Gia hạn button */}
-                <Pressable
-                  onPress={handleExtend}
-                  disabled={actionLoading || ttl <= 0 || hasExtended}
-                  style={({ pressed }) => [
-                    {
-                      transform: [{ scale: pressed ? 0.97 : 1 }],
-                      opacity:
-                        actionLoading || ttl <= 0 || hasExtended ? 0.7 : 1,
-                      borderRadius: 16,
-                      overflow: "hidden",
-                    },
-                  ]}
-                >
-                  {actionLoading || ttl <= 0 || hasExtended ? (
-                    <View
-                      className="py-4 px-6"
-                      style={{ backgroundColor: "#e5e7eb" }}
-                    >
-                      <View className="flex-row items-center">
-                        {actionLoading ? (
-                          <ActivityIndicator size="small" color="#6b7280" />
-                        ) : (
-                          <>
-                            <View
-                              className="rounded-full p-2"
-                              style={{ backgroundColor: "rgba(0, 0, 0, 0.1)" }}
-                            >
-                              <Ionicons
-                                name={
-                                  hasExtended
-                                    ? "checkmark-circle"
-                                    : "time-outline"
-                                }
-                                size={22}
-                                color="#6b7280"
-                              />
-                            </View>
-                            <View className="flex-1 ml-4">
-                              <Text
-                                className="font-bold text-base"
-                                style={{ color: "#374151" }}
+                  {/* Gia hạn button */}
+                  <Pressable
+                    onPress={handleExtend}
+                    disabled={actionLoading || ttl <= 0 || hasExtended}
+                    style={({ pressed }) => [
+                      {
+                        transform: [{ scale: pressed ? 0.97 : 1 }],
+                        opacity:
+                          actionLoading || ttl <= 0 || hasExtended ? 0.7 : 1,
+                        borderRadius: 16,
+                        overflow: "hidden",
+                      },
+                    ]}
+                  >
+                    {actionLoading || ttl <= 0 || hasExtended ? (
+                      <View
+                        className="py-4 px-6"
+                        style={{ backgroundColor: "#e5e7eb" }}
+                      >
+                        <View className="flex-row items-center">
+                          {actionLoading ? (
+                            <ActivityIndicator size="small" color="#6b7280" />
+                          ) : (
+                            <>
+                              <View
+                                className="rounded-full p-2"
+                                style={{
+                                  backgroundColor: "rgba(0, 0, 0, 0.1)",
+                                }}
                               >
-                                {hasExtended
-                                  ? "Đã gia hạn"
-                                  : "Gia hạn thêm 15 phút"}
-                              </Text>
-                              {hasExtended && (
+                                <Ionicons
+                                  name={
+                                    hasExtended
+                                      ? "checkmark-circle"
+                                      : "time-outline"
+                                  }
+                                  size={22}
+                                  color="#6b7280"
+                                />
+                              </View>
+                              <View className="flex-1 ml-4">
                                 <Text
-                                  className="text-xs mt-0.5"
-                                  style={{ color: "#6b7280" }}
+                                  className="font-bold text-base"
+                                  style={{ color: "#374151" }}
                                 >
-                                  Chỉ được gia hạn 1 lần
+                                  {hasExtended ? "Đã gia hạn" : "Gia hạn"}
                                 </Text>
-                              )}
-                            </View>
-                          </>
-                        )}
+                                {hasExtended && (
+                                  <Text
+                                    className="text-xs mt-0.5"
+                                    style={{ color: "#6b7280" }}
+                                  >
+                                    Chỉ được gia hạn 1 lần
+                                  </Text>
+                                )}
+                              </View>
+                            </>
+                          )}
+                        </View>
                       </View>
-                    </View>
-                  ) : (
-                    <LinearGradient
-                      colors={["#10b981", "#059669"]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={{
-                        paddingVertical: 16,
-                        paddingHorizontal: 24,
-                        borderRadius: 16,
-                      }}
-                    >
-                      <View className="flex-row items-center">
-                        <View
-                          className="rounded-full p-2"
-                          style={{
-                            backgroundColor: "rgba(255, 255, 255, 0.3)",
-                          }}
-                        >
+                    ) : (
+                      <LinearGradient
+                        colors={["#10b981", "#059669"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={{
+                          paddingVertical: 16,
+                          paddingHorizontal: 24,
+                          borderRadius: 16,
+                        }}
+                      >
+                        <View className="flex-row items-center">
+                          <View
+                            className="rounded-full p-2"
+                            style={{
+                              backgroundColor: "rgba(255, 255, 255, 0.3)",
+                            }}
+                          >
+                            <Ionicons
+                              name="time-outline"
+                              size={22}
+                              color="white"
+                            />
+                          </View>
+                          <View className="flex-1 ml-4">
+                            <Text
+                              className="font-bold text-base"
+                              style={{ color: "#ffffff" }}
+                            >
+                              Gia hạn
+                            </Text>
+                          </View>
                           <Ionicons
-                            name="time-outline"
-                            size={22}
+                            name="chevron-forward"
+                            size={20}
                             color="white"
+                            style={{ opacity: 0.9 }}
                           />
                         </View>
-                        <View className="flex-1 ml-4">
-                          <Text
-                            className="font-bold text-base"
-                            style={{ color: "#ffffff" }}
-                          >
-                            Gia hạn thêm 15 phút
-                          </Text>
-                        </View>
-                        <Ionicons
-                          name="chevron-forward"
-                          size={20}
-                          color="white"
-                          style={{ opacity: 0.9 }}
-                        />
-                      </View>
-                    </LinearGradient>
-                  )}
-                </Pressable>
+                      </LinearGradient>
+                    )}
+                  </Pressable>
 
-                {/* Hủy button */}
-                <Pressable
-                  className="mt-4"
-                  onPress={handleCancel}
-                  disabled={actionLoading}
-                  style={({ pressed }) => [
-                    {
-                      transform: [{ scale: pressed ? 0.97 : 1 }],
-                      opacity: actionLoading ? 0.7 : 1,
-                      borderRadius: 16,
-                      overflow: "hidden",
-                    },
-                  ]}
-                >
-                  {actionLoading ? (
-                    <View
-                      className="py-4 px-6"
-                      style={{ backgroundColor: "#e5e7eb" }}
-                    >
-                      <ActivityIndicator size="small" color="#6b7280" />
-                    </View>
-                  ) : (
-                    <LinearGradient
-                      colors={["#ef4444", "#dc2626"]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={{
-                        paddingVertical: 16,
-                        paddingHorizontal: 24,
+                  {/* Hủy button */}
+                  <Pressable
+                    className="mt-4"
+                    onPress={handleCancel}
+                    disabled={actionLoading}
+                    style={({ pressed }) => [
+                      {
+                        transform: [{ scale: pressed ? 0.97 : 1 }],
+                        opacity: actionLoading ? 0.7 : 1,
                         borderRadius: 16,
-                      }}
-                    >
-                      <View className="flex-row items-center">
-                        <View
-                          className="rounded-full p-2"
-                          style={{
-                            backgroundColor: "rgba(255, 255, 255, 0.3)",
-                          }}
-                        >
+                        overflow: "hidden",
+                      },
+                    ]}
+                  >
+                    {actionLoading ? (
+                      <View
+                        className="py-4 px-6"
+                        style={{ backgroundColor: "#e5e7eb" }}
+                      >
+                        <ActivityIndicator size="small" color="#6b7280" />
+                      </View>
+                    ) : (
+                      <LinearGradient
+                        colors={["#ef4444", "#dc2626"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={{
+                          paddingVertical: 16,
+                          paddingHorizontal: 24,
+                          borderRadius: 16,
+                        }}
+                      >
+                        <View className="flex-row items-center">
+                          <View
+                            className="rounded-full p-2"
+                            style={{
+                              backgroundColor: "rgba(255, 255, 255, 0.3)",
+                            }}
+                          >
+                            <Ionicons
+                              name="close-circle-outline"
+                              size={22}
+                              color="white"
+                            />
+                          </View>
+                          <View className="flex-1 ml-4">
+                            <Text
+                              className="font-bold text-base"
+                              style={{ color: "#ffffff" }}
+                            >
+                              Hủy đặt chỗ
+                            </Text>
+                          </View>
                           <Ionicons
-                            name="close-circle-outline"
-                            size={22}
+                            name="chevron-forward"
+                            size={20}
                             color="white"
+                            style={{ opacity: 0.9 }}
                           />
                         </View>
-                        <View className="flex-1 ml-4">
-                          <Text
-                            className="font-bold text-base"
-                            style={{ color: "#ffffff" }}
-                          >
-                            Hủy đặt chỗ
-                          </Text>
-                        </View>
-                        <Ionicons
-                          name="chevron-forward"
-                          size={20}
-                          color="white"
-                          style={{ opacity: 0.9 }}
-                        />
-                      </View>
-                    </LinearGradient>
-                  )}
-                </Pressable>
-              </View>
-            )}
+                      </LinearGradient>
+                    )}
+                  </Pressable>
+                </View>
+              )}
 
-            {/* Reload button khi expired */}
-            {reservation && reservation.status === "expired" && (
-              <View className="mb-8">
-                <Pressable
-                  onPress={onRefresh}
-                  className="h-14 rounded-2xl items-center justify-center shadow-lg bg-gradient-to-r from-blue-600 to-indigo-600"
-                  style={({ pressed }) => [
-                    {
-                      transform: [{ scale: pressed ? 0.98 : 1 }],
-                    },
-                  ]}
-                >
-                  <View className="flex-row items-center">
-                    <Ionicons name="refresh" size={24} color="white" />
-                    <Text className="text-white font-bold text-lg ml-2">
-                      Làm mới thông tin
-                    </Text>
-                  </View>
-                </Pressable>
-              </View>
-            )}
-          </View>
-        )}
-      </ScrollView>
-    </View>
+              {/* Reload button khi expired */}
+              {reservation && reservation.status === "expired" && (
+                <View className="mb-8">
+                  <Pressable
+                    onPress={onRefresh}
+                    className="h-14 rounded-2xl items-center justify-center shadow-lg bg-gradient-to-r from-blue-600 to-indigo-600"
+                    style={({ pressed }) => [
+                      {
+                        transform: [{ scale: pressed ? 0.98 : 1 }],
+                      },
+                    ]}
+                  >
+                    <View className="flex-row items-center">
+                      <Ionicons name="refresh" size={24} color="white" />
+                      <Text className="text-white font-bold text-lg ml-2">
+                        Làm mới thông tin
+                      </Text>
+                    </View>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          )}
+        </ScrollView>
+      </View>
+    </>
   );
 }

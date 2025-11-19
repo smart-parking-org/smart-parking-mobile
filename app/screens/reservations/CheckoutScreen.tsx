@@ -8,11 +8,12 @@ import {
   ActivityIndicator,
   Pressable,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { apiPayment } from "@/lib/api/client";
 import { checkOutReservation } from "@/lib/api/booking";
 import { PageHeader } from "../../components/common/PageHeader";
+import { AppColor } from "@/lib/utils/color";
 
 type ReservationDetails = {
   id: number;
@@ -241,149 +242,175 @@ export default function CheckoutScreen() {
     : 0;
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
-      <PageHeader title="CHECKOUT" />
-
-      <View style={{ padding: 24 }}>
-        {/* Reservation Info */}
-        <View
-          style={{
-            backgroundColor: "white",
-            borderRadius: 16,
-            padding: 20,
-            marginBottom: 16,
-          }}
-        >
-          <Text style={{ fontSize: 24, fontWeight: "bold", marginBottom: 8 }}>
-            Mã đặt chỗ
-          </Text>
-          <View
-            style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}
-          >
-            <Ionicons name="qr-code-outline" size={20} color="#6b7280" />
-            <Text style={{ marginLeft: 8, color: "#6b7280" }}>
-              {reservation.reservation_code}
-            </Text>
-          </View>
-        </View>
-
-        {/* Chi tiết đơn hàng */}
-        <View
-          style={{
-            backgroundColor: "white",
-            borderRadius: 16,
-            padding: 20,
-            marginBottom: 16,
-          }}
-        >
-          <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 16 }}>
-            Chi tiết đơn hàng
-          </Text>
-
-          <View style={{ gap: 12 }}>
-            <View
-              style={{ flexDirection: "row", justifyContent: "space-between" }}
-            >
-              <Text style={{ color: "#6b7280" }}>Vị trí</Text>
-              <Text style={{ fontWeight: "600" }}>
-                {reservation.slot?.slot_code || "N/A"}
-              </Text>
-            </View>
-
-            <View
-              style={{ flexDirection: "row", justifyContent: "space-between" }}
-            >
-              <Text style={{ color: "#6b7280" }}>Biển số</Text>
-              <Text style={{ fontWeight: "600" }}>
-                {reservation.vehicle_snapshot?.license_plate || "N/A"}
-              </Text>
-            </View>
-
-            <View
-              style={{ flexDirection: "row", justifyContent: "space-between" }}
-            >
-              <Text style={{ color: "#6b7280" }}>Thời gian đỗ</Text>
-              <Text style={{ fontWeight: "600" }}>
-                {formatDuration(duration)}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Tổng tiền */}
-        <View
-          style={{
-            backgroundColor: "#3b82f6",
-            borderRadius: 16,
-            padding: 20,
-            marginBottom: 24,
-          }}
-        >
+    <>
+      <PageHeader title="Đặt chỗ thành công" showHome={false} />
+      <ScrollView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
+        <View style={{ padding: 24 }}>
+          {/* Reservation Info */}
           <View
             style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
+              backgroundColor: "white",
+              borderRadius: 16,
+              padding: 20,
+              marginBottom: 16,
             }}
           >
-            <Text style={{ color: "white", fontSize: 18, fontWeight: "600" }}>
-              Tổng cộng
+            <Text style={{ fontSize: 24, fontWeight: "bold", marginBottom: 8 }}>
+              Mã đặt chỗ
             </Text>
-            <Text style={{ color: "white", fontSize: 32, fontWeight: "bold" }}>
-              {amount.toLocaleString("vi-VN")} đ
-            </Text>
-          </View>
-        </View>
-
-        {/* Payment Method Selection */}
-        <View
-          style={{
-            backgroundColor: "white",
-            borderRadius: 16,
-            padding: 20,
-            marginBottom: 16,
-          }}
-        >
-          <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 16 }}>
-            Chọn phương thức thanh toán
-          </Text>
-
-          {/* Thông báo nếu số tiền < 10.000 */}
-          {amount < 10000 && (
             <View
               style={{
-                backgroundColor: "#fef3c7",
-                borderRadius: 12,
-                padding: 12,
-                marginBottom: 16,
                 flexDirection: "row",
                 alignItems: "center",
+                marginTop: 4,
               }}
             >
-              <Ionicons name="information-circle" size={20} color="#f59e0b" />
-              <Text
-                style={{
-                  color: "#92400e",
-                  fontSize: 14,
-                  marginLeft: 8,
-                  flex: 1,
-                }}
-              >
-                Số tiền dưới 10.000đ chỉ có thể thanh toán trực tiếp tại bãi xe
+              <Ionicons name="qr-code-outline" size={20} color="#6b7280" />
+              <Text style={{ marginLeft: 8, color: "#6b7280" }}>
+                {reservation.reservation_code}
               </Text>
             </View>
-          )}
+          </View>
 
-          {/* Online Payment Button - chỉ hiển thị khi amount >= 10000 */}
-          {amount >= 10000 && (
+          {/* Chi tiết đơn hàng */}
+          <View
+            style={{
+              backgroundColor: "white",
+              borderRadius: 16,
+              padding: 20,
+              marginBottom: 16,
+            }}
+          >
+            <Text
+              style={{ fontSize: 18, fontWeight: "bold", marginBottom: 16 }}
+            >
+              Chi tiết đơn hàng
+            </Text>
+
+            <View style={{ gap: 12 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text style={{ color: "#6b7280" }}>Vị trí</Text>
+                <Text style={{ fontWeight: "600" }}>
+                  {reservation.slot?.slot_code || "N/A"}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text style={{ color: "#6b7280" }}>Biển số</Text>
+                <Text style={{ fontWeight: "600" }}>
+                  {reservation.vehicle_snapshot?.license_plate || "N/A"}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text style={{ color: "#6b7280" }}>Thời gian đỗ</Text>
+                <Text style={{ fontWeight: "600" }}>
+                  {formatDuration(duration)}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Payment Method Selection */}
+          <View
+            style={{
+              backgroundColor: "white",
+              borderRadius: 16,
+              padding: 20,
+              marginBottom: 16,
+            }}
+          >
+            <Text
+              style={{ fontSize: 18, fontWeight: "bold", marginBottom: 16 }}
+            >
+              Chọn phương thức thanh toán
+            </Text>
+
+            {/* Thông báo nếu số tiền < 10.000 */}
+            {amount < 10000 && (
+              <View
+                style={{
+                  backgroundColor: "#fef3c7",
+                  borderRadius: 12,
+                  padding: 12,
+                  marginBottom: 16,
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons name="information-circle" size={20} color="#f59e0b" />
+                <Text
+                  style={{
+                    color: "#92400e",
+                    fontSize: 14,
+                    marginLeft: 8,
+                    flex: 1,
+                  }}
+                >
+                  Số tiền dưới 10.000đ chỉ có thể thanh toán trực tiếp tại bãi
+                  xe
+                </Text>
+              </View>
+            )}
+
+            {/* Online Payment Button - chỉ hiển thị khi amount >= 10000 */}
+            {amount >= 10000 && (
+              <TouchableOpacity
+                onPress={() => handleCheckout("online")}
+                disabled={processing}
+                style={{
+                  backgroundColor: processing ? "#9ca3af" : "#10b981",
+                  borderRadius: 12,
+                  padding: 16,
+                  marginBottom: 12,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {processing ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <>
+                    <Ionicons name="card" size={24} color="white" />
+                    <Text
+                      style={{
+                        color: "white",
+                        fontWeight: "bold",
+                        fontSize: 18,
+                        marginLeft: 8,
+                      }}
+                    >
+                      Thanh toán trực tuyến
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {/* Offline Payment Button */}
             <TouchableOpacity
-              onPress={() => handleCheckout("online")}
+              onPress={() => handleCheckout("offline")}
               disabled={processing}
               style={{
-                backgroundColor: processing ? "#9ca3af" : "#10b981",
+                backgroundColor: processing ? "#9ca3af" : "#3b82f6",
                 borderRadius: 12,
                 padding: 16,
-                marginBottom: 12,
                 flexDirection: "row",
                 alignItems: "center",
                 justifyContent: "center",
@@ -393,7 +420,7 @@ export default function CheckoutScreen() {
                 <ActivityIndicator color="white" />
               ) : (
                 <>
-                  <Ionicons name="card" size={24} color="white" />
+                  <Ionicons name="cash" size={24} color="white" />
                   <Text
                     style={{
                       color: "white",
@@ -402,58 +429,26 @@ export default function CheckoutScreen() {
                       marginLeft: 8,
                     }}
                   >
-                    Thanh toán trực tuyến
+                    Thanh toán trực tiếp
                   </Text>
                 </>
               )}
             </TouchableOpacity>
-          )}
-
-          {/* Offline Payment Button */}
-          <TouchableOpacity
-            onPress={() => handleCheckout("offline")}
-            disabled={processing}
-            style={{
-              backgroundColor: processing ? "#9ca3af" : "#3b82f6",
-              borderRadius: 12,
-              padding: 16,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {processing ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <>
-                <Ionicons name="cash" size={24} color="white" />
-                <Text
-                  style={{
-                    color: "white",
-                    fontWeight: "bold",
-                    fontSize: 18,
-                    marginLeft: 8,
-                  }}
-                >
-                  Thanh toán trực tiếp
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Info */}
-        {amount >= 10000 && (
-          <View style={{ marginTop: 8, alignItems: "center" }}>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Ionicons name="information-circle" size={20} color="#6b7280" />
-              <Text style={{ marginLeft: 8, color: "#6b7280", fontSize: 14 }}>
-                Thanh toán trực tuyến sẽ tạo mã QR để quét tại cổng ra
-              </Text>
-            </View>
           </View>
-        )}
-      </View>
-    </ScrollView>
+
+          {/* Info */}
+          {amount >= 10000 && (
+            <View style={{ marginTop: 8, alignItems: "center" }}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Ionicons name="information-circle" size={20} color="#6b7280" />
+                <Text style={{ marginLeft: 8, color: "#6b7280", fontSize: 14 }}>
+                  Thanh toán trực tiếp sẽ tạo mã QR để quét tại cổng ra
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </>
   );
 }

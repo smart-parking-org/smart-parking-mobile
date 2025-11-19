@@ -33,6 +33,22 @@ export interface NotificationListResponse {
   unread_count: number;
 }
 
+export interface SendNotificationPayload {
+  user_id?: number;
+  license_plate?: string;
+  title: string;
+  body: string;
+  type: string;
+  data?: Record<string, any>;
+}
+
+export interface SendNotificationResponse {
+  message: string;
+  success?: boolean;
+  notification_id?: number;
+  fcm_message_id?: string | null;
+}
+
 // Lấy danh sách thông báo
 export async function getNotifications(
   params: NotificationListParams
@@ -48,6 +64,21 @@ export async function getNotifications(
           ...(params.per_page && { per_page: params.per_page }),
         },
       }
+    );
+    return data;
+  } catch (err: any) {
+    const message = parseApiError(err);
+    throw new Error(message);
+  }
+}
+
+export async function sendNotification(
+  payload: SendNotificationPayload
+): Promise<SendNotificationResponse> {
+  try {
+    const { data } = await apiPayment.post<SendNotificationResponse>(
+      "/notifications/send",
+      payload
     );
     return data;
   } catch (err: any) {

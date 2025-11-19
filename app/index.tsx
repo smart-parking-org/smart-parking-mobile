@@ -5,10 +5,14 @@ import * as SplashScreen from "expo-splash-screen";
 import { clearTokens, getAccessToken } from "@/lib/storage/auth";
 import { getProfile } from "@/lib/api/auth";
 
-async function verifyToken(): Promise<boolean> {
+type AuthUser = {
+  role?: string;
+};
+
+async function verifyToken(): Promise<AuthUser | null> {
   try {
-    await getProfile();
-    return true;
+    const profile = await getProfile();
+    return (profile?.data ?? profile) as AuthUser;
   } catch (error: any) {
     // Token hết hạn hoặc invalid
     console.warn(
@@ -16,7 +20,7 @@ async function verifyToken(): Promise<boolean> {
       error?.response?.data || error?.message
     );
     await clearTokens();
-    return false;
+    return null;
   }
 }
 
@@ -28,10 +32,15 @@ async function checkAuthenticationAndNavigate(): Promise<void> {
 
   if (token) {
     // Verify token bằng cách gọi auth/me
-    const isValid = await verifyToken();
+    const profile = await verifyToken();
 
-    if (isValid) {
-      router.replace("/screens/tab/HomeScreen");
+    if (profile) {
+      const role = profile?.role?.toLowerCase();
+      if (role === "staff") {
+        router.replace("/screens/staff/SendNotificationScreen");
+      } else {
+        router.replace("/screens/tab/HomeScreen");
+      }
     } else {
       // Token invalid hoặc hết hạn → redirect về login
       router.replace("/screens/auth/LoginScreen");

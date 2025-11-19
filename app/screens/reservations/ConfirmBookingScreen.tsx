@@ -117,11 +117,7 @@ export default function ConfirmBookingScreen() {
         contentContainerClassName="flex-grow"
         showsVerticalScrollIndicator={false}
       >
-        <PageHeader
-          title="Đặt chỗ thành công"
-          subtitle="Thông tin đặt chỗ của bạn"
-          showHome={false}
-        />
+        <PageHeader title="Đặt chỗ thành công" showHome={false} />
 
         {/* Reservation Info Card */}
         {reservation && (

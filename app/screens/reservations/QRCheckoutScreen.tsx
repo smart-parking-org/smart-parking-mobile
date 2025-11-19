@@ -8,11 +8,12 @@ import {
   RefreshControl,
   ScrollView,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import QRCode from "react-native-qrcode-svg";
 import { apiPayment } from "@/lib/api/client";
 import { PageHeader } from "../../components/common/PageHeader";
+import { AppColor } from "@/lib/utils/color";
 
 type ReservationData = {
   id: number;
@@ -69,27 +70,13 @@ export default function QRCheckoutScreen() {
       const isPaid = reservationData.payment?.status === "PAID";
       const isMonthlyPass = reservationData.payment?.meta?.is_free === true;
 
-      // ✅ Nếu có checkoutCode từ params (từ check-in với monthly pass), sử dụng nó
-      if (checkoutCode && !checkoutCodeFromAPI) {
+      // ✅ Không cần lấy checkout code nữa, dùng reservation_code
+      // Nếu có checkoutCode từ params (từ check-in với monthly pass), sử dụng nó
+      if (checkoutCode) {
         setCheckoutCodeFromAPI(checkoutCode);
-      } else if ((isPaid || isMonthlyPass) && !checkoutCodeFromAPI) {
-        // Nếu đã thanh toán hoặc có monthly pass, thử lấy checkout code từ API
-        try {
-          const checkoutResponse = await apiPayment.get<{
-            success: boolean;
-            data: {
-              checkout_code: string;
-              status: string;
-              expires_at?: string;
-              qr_data: string;
-            };
-          }>(`/reservations/${reservationId}/checkout-code`);
-          if (checkoutResponse.data.data?.checkout_code) {
-            setCheckoutCodeFromAPI(checkoutResponse.data.data.checkout_code);
-          }
-        } catch (e) {
-          console.log("No checkout code available yet");
-        }
+      } else {
+        // Dùng reservation_code làm QR code
+        setCheckoutCodeFromAPI(null);
       }
 
       if (!isOfflinePayment && !isPaid && !isMonthlyPass) {
@@ -199,11 +186,22 @@ export default function QRCheckoutScreen() {
   }
 
   return (
-    <View className="flex-1">
-      <PageHeader
-        title="QR CHECKOUT"
-        subtitle=""
-        homeRoute="/screens/tab/QRScreen"
+    <>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: "CHECK-OUT",
+          headerTitleAlign: "center",
+          headerStyle: { backgroundColor: AppColor.PRIMARY },
+          headerShadowVisible: false,
+          headerTitleStyle: {
+            fontWeight: "800",
+            fontSize: 16,
+            color: "#fff",
+          },
+          headerTintColor: "#fff",
+          headerBackVisible: true,
+        }}
       />
       <ScrollView
         className="flex-1 bg-gradient-to-br from-green-50 to-emerald-100"
@@ -439,6 +437,6 @@ export default function QRCheckoutScreen() {
           </View>
         </View>
       </ScrollView>
-    </View>
+    </>
   );
 }

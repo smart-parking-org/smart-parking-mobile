@@ -74,6 +74,7 @@ export default function QRScreen() {
     if (reservation.status === "pending_payment") {
       router.push({
         pathname: "/screens/reservations/PaymentScreen",
+
         params: {
           reservationId: String(reservation.id),
         },
@@ -122,8 +123,10 @@ export default function QRScreen() {
 
   const renderItem = ({ item }: { item: Reservation }) => {
     // ✅ Kiểm tra có monthly pass không
-    const hasMonthlyPass = item.payment?.meta?.is_free === true || item.is_free === true;
-    const isCheckedInWithMonthlyPass = item.status === "checked_in" && hasMonthlyPass;
+    const hasMonthlyPass =
+      item.payment?.meta?.is_free === true || item.is_free === true;
+    const isCheckedInWithMonthlyPass =
+      item.status === "checked_in" && hasMonthlyPass;
 
     return (
       <View className="bg-white rounded-3xl shadow-lg p-6 mb-6 mx-2">
@@ -202,177 +205,178 @@ export default function QRScreen() {
           </View>
         )}
 
-      {/* Thông báo cho pending_payment */}
-      {item.status === "pending_payment" && (
-        <View className="items-center mb-6">
-          <View className="bg-amber-50 p-4 rounded-2xl border-2 border-amber-200 w-full">
-            <View className="flex-row items-center justify-center mb-2">
-              <Ionicons name="information-circle" size={24} color="#f59e0b" />
-              <Text className="text-amber-800 font-bold ml-2">
-                Đang chờ thanh toán
+        {/* Thông báo cho pending_payment */}
+        {item.status === "pending_payment" && (
+          <View className="items-center mb-6">
+            <View className="bg-amber-50 p-4 rounded-2xl border-2 border-amber-200 w-full">
+              <View className="flex-row items-center justify-center mb-2">
+                <Ionicons name="information-circle" size={24} color="#f59e0b" />
+                <Text className="text-amber-800 font-bold ml-2">
+                  Đang chờ thanh toán
+                </Text>
+              </View>
+              <Text className="text-amber-700 text-center text-sm">
+                Vui lòng thanh toán để nhận mã QR checkout
               </Text>
             </View>
-            <Text className="text-amber-700 text-center text-sm">
-              Vui lòng thanh toán để nhận mã QR checkout
-            </Text>
           </View>
-        </View>
-      )}
-
-      {/* Thông báo cho pending_checkout */}
-      {item.status === "pending_checkout" && (
-        <View className="items-center mb-6">
-          <View className="bg-amber-50 p-4 rounded-2xl border-2 border-amber-200 w-full">
-            <View className="flex-row items-center justify-center mb-2">
-              <Ionicons name="information-circle" size={24} color="#f59e0b" />
-              <Text className="text-amber-800 font-bold ml-2">
-                Đã thanh toán thành công
-              </Text>
-            </View>
-            <Text className="text-amber-700 text-center text-sm">
-              Nhấn 'Lấy QR' để xem mã QR checkout
-            </Text>
-          </View>
-        </View>
-      )}
-
-      {/* Details */}
-      <View className="space-y-3 mb-6">
-        <View className="flex-row items-center justify-between py-2 border-b border-gray-100">
-          <View className="flex-row items-center">
-            <Ionicons name="location" size={18} color="#6b7280" />
-            <Text className="text-gray-600 font-medium ml-2">Vị trí</Text>
-          </View>
-          <Text className="text-gray-800 font-semibold">
-            {item.slot?.slot_code || "N/A"}
-          </Text>
-        </View>
-
-        <View className="flex-row items-center justify-between py-2 border-b border-gray-100">
-          <View className="flex-row items-center">
-            <Ionicons
-              name={
-                item.vehicle_snapshot?.vehicle_type === "motorbike"
-                  ? "bicycle"
-                  : "car"
-              }
-              size={18}
-              color="#6b7280"
-            />
-            <Text className="text-gray-600 font-medium ml-2">Loại xe</Text>
-          </View>
-          <Text className="text-gray-800 font-semibold">
-            {getVehicleTypeLabel(item.vehicle_snapshot?.vehicle_type)}
-          </Text>
-        </View>
-
-        <View className="flex-row items-center justify-between py-2 border-b border-gray-100">
-          <View className="flex-row items-center">
-            <Ionicons name="card" size={18} color="#6b7280" />
-            <Text className="text-gray-600 font-medium ml-2">Biển số</Text>
-          </View>
-          <Text className="text-gray-800 font-semibold">
-            {item.vehicle_snapshot?.license_plate || "N/A"}
-          </Text>
-        </View>
-
-        <View className="flex-row items-center justify-between py-2">
-          <View className="flex-row items-center">
-            <Ionicons name="time" size={18} color="#6b7280" />
-            <Text className="text-gray-600 font-medium ml-2">Thời gian</Text>
-          </View>
-          <Text className="text-gray-800 font-semibold">
-            {new Date(item.start_time).toLocaleString("vi-VN")}
-          </Text>
-        </View>
-      </View>
-
-      {/* Action Buttons */}
-      <View className="flex-row gap-3">
-        {/* Nút Xem chi tiết */}
-        <Pressable
-          onPress={() =>
-            router.push({
-              pathname: "/screens/reservations/QRCheckInScreen",
-              params: {
-                bookingId: String(item.id),
-                reservationCode: item.reservation_code,
-              },
-            })
-          }
-          className={
-            item.status === "checked_in" ||
-            item.status === "pending_checkout" ||
-            item.status === "pending_payment"
-              ? "flex-1 h-12 rounded-2xl items-center justify-center bg-blue-600"
-              : "h-12 rounded-2xl items-center justify-center bg-blue-600 w-full"
-          }
-          style={({ pressed }) => [
-            {
-              transform: [{ scale: pressed ? 0.98 : 1 }],
-            },
-          ]}
-        >
-          <View className="flex-row items-center justify-center">
-            <Ionicons name="eye" size={20} color="white" />
-            <Text className="text-white font-bold ml-2">Xem chi tiết</Text>
-          </View>
-        </Pressable>
-
-        {/* ✅ Nút Xem QR Checkout - hiển thị khi checked_in với monthly pass */}
-        {isCheckedInWithMonthlyPass && (
-          <Pressable
-            onPress={() => onGetCheckoutCode(item)}
-            className="flex-1 h-12 rounded-2xl items-center justify-center bg-green-500"
-            style={({ pressed }) => [
-              {
-                transform: [{ scale: pressed ? 0.98 : 1 }],
-              },
-            ]}
-          >
-            <View className="flex-row items-center justify-center">
-              <Ionicons name="qr-code" size={20} color="white" />
-              <Text className="text-white font-bold ml-2">QR Checkout</Text>
-            </View>
-          </Pressable>
         )}
 
-        {/* Nút Thanh toán - chỉ hiển thị khi checked_in hoặc pending_payment và KHÔNG có monthly pass */}
-        {(item.status === "checked_in" ||
-          item.status === "pending_payment") && !hasMonthlyPass && (
-          <Pressable
-            onPress={() => onCheckout(item)}
-            className="flex-1 h-12 rounded-2xl items-center justify-center bg-green-400"
-            style={({ pressed }) => [
-              {
-                transform: [{ scale: pressed ? 0.98 : 1 }],
-              },
-            ]}
-          >
-            <View className="flex-row items-center justify-center">
-              <Ionicons name="card" size={20} color="white" />
-              <Text className="text-white font-bold ml-2">Thanh toán</Text>
-            </View>
-          </Pressable>
-        )}
-
-        {/* Nút Lấy mã QR checkout - chỉ hiển thị khi pending_checkout (đã thanh toán) */}
+        {/* Thông báo cho pending_checkout */}
         {item.status === "pending_checkout" && (
+          <View className="items-center mb-6">
+            <View className="bg-amber-50 p-4 rounded-2xl border-2 border-amber-200 w-full">
+              <View className="flex-row items-center justify-center mb-2">
+                <Ionicons name="information-circle" size={24} color="#f59e0b" />
+                <Text className="text-amber-800 font-bold ml-2">
+                  Đã thanh toán thành công
+                </Text>
+              </View>
+              <Text className="text-amber-700 text-center text-sm">
+                Nhấn 'Lấy QR' để xem mã QR checkout
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Details */}
+        <View className="space-y-3 mb-6">
+          <View className="flex-row items-center justify-between py-2 border-b border-gray-100">
+            <View className="flex-row items-center">
+              <Ionicons name="location" size={18} color="#6b7280" />
+              <Text className="text-gray-600 font-medium ml-2">Vị trí</Text>
+            </View>
+            <Text className="text-gray-800 font-semibold">
+              {item.slot?.slot_code || "N/A"}
+            </Text>
+          </View>
+
+          <View className="flex-row items-center justify-between py-2 border-b border-gray-100">
+            <View className="flex-row items-center">
+              <Ionicons
+                name={
+                  item.vehicle_snapshot?.vehicle_type === "motorbike"
+                    ? "bicycle"
+                    : "car"
+                }
+                size={18}
+                color="#6b7280"
+              />
+              <Text className="text-gray-600 font-medium ml-2">Loại xe</Text>
+            </View>
+            <Text className="text-gray-800 font-semibold">
+              {getVehicleTypeLabel(item.vehicle_snapshot?.vehicle_type)}
+            </Text>
+          </View>
+
+          <View className="flex-row items-center justify-between py-2 border-b border-gray-100">
+            <View className="flex-row items-center">
+              <Ionicons name="card" size={18} color="#6b7280" />
+              <Text className="text-gray-600 font-medium ml-2">Biển số</Text>
+            </View>
+            <Text className="text-gray-800 font-semibold">
+              {item.vehicle_snapshot?.license_plate || "N/A"}
+            </Text>
+          </View>
+
+          <View className="flex-row items-center justify-between py-2">
+            <View className="flex-row items-center">
+              <Ionicons name="time" size={18} color="#6b7280" />
+              <Text className="text-gray-600 font-medium ml-2">Thời gian</Text>
+            </View>
+            <Text className="text-gray-800 font-semibold">
+              {new Date(item.start_time).toLocaleString("vi-VN")}
+            </Text>
+          </View>
+        </View>
+
+        {/* Action Buttons */}
+        <View className="flex-row gap-3">
+          {/* Nút Xem chi tiết */}
           <Pressable
-            onPress={() => onGetCheckoutCode(item)}
-            className="h-12 w-12 rounded-2xl items-center justify-center bg-amber-500"
+            onPress={() =>
+              router.push({
+                pathname: "/screens/reservations/QRCheckInScreen",
+                params: {
+                  bookingId: String(item.id),
+                  reservationCode: item.reservation_code,
+                },
+              })
+            }
+            className={
+              item.status === "checked_in" ||
+              item.status === "pending_checkout" ||
+              item.status === "pending_payment"
+                ? "flex-1 h-12 rounded-2xl items-center justify-center bg-blue-600"
+                : "h-12 rounded-2xl items-center justify-center bg-blue-600 w-full"
+            }
             style={({ pressed }) => [
               {
                 transform: [{ scale: pressed ? 0.98 : 1 }],
               },
             ]}
           >
-            <Ionicons name="qr-code" size={20} color="white" />
+            <View className="flex-row items-center justify-center">
+              <Ionicons name="eye" size={20} color="white" />
+              <Text className="text-white font-bold ml-2">Xem chi tiết</Text>
+            </View>
           </Pressable>
-        )}
+
+          {/* ✅ Nút Xem QR Checkout - hiển thị khi checked_in với monthly pass */}
+          {isCheckedInWithMonthlyPass && (
+            <Pressable
+              onPress={() => onGetCheckoutCode(item)}
+              className="flex-1 h-12 rounded-2xl items-center justify-center bg-green-500"
+              style={({ pressed }) => [
+                {
+                  transform: [{ scale: pressed ? 0.98 : 1 }],
+                },
+              ]}
+            >
+              <View className="flex-row items-center justify-center">
+                <Ionicons name="qr-code" size={20} color="white" />
+                <Text className="text-white font-bold ml-2">QR Checkout</Text>
+              </View>
+            </Pressable>
+          )}
+
+          {/* Nút Thanh toán - chỉ hiển thị khi checked_in hoặc pending_payment và KHÔNG có monthly pass */}
+          {(item.status === "checked_in" ||
+            item.status === "pending_payment") &&
+            !hasMonthlyPass && (
+              <Pressable
+                onPress={() => onCheckout(item)}
+                className="flex-1 h-12 rounded-2xl items-center justify-center bg-green-400"
+                style={({ pressed }) => [
+                  {
+                    transform: [{ scale: pressed ? 0.98 : 1 }],
+                  },
+                ]}
+              >
+                <View className="flex-row items-center justify-center">
+                  <Ionicons name="card" size={20} color="white" />
+                  <Text className="text-white font-bold ml-2">Thanh toán</Text>
+                </View>
+              </Pressable>
+            )}
+
+          {/* Nút Lấy mã QR checkout - chỉ hiển thị khi pending_checkout (đã thanh toán) */}
+          {item.status === "pending_checkout" && (
+            <Pressable
+              onPress={() => onGetCheckoutCode(item)}
+              className="h-12 w-12 rounded-2xl items-center justify-center bg-amber-500"
+              style={({ pressed }) => [
+                {
+                  transform: [{ scale: pressed ? 0.98 : 1 }],
+                },
+              ]}
+            >
+              <Ionicons name="qr-code" size={20} color="white" />
+            </Pressable>
+          )}
+        </View>
       </View>
-    </View>
-  );
+    );
   };
 
   if (loading) {

@@ -17,6 +17,8 @@ const ACTIVE = AppColor.PRIMARY; // xanh nhạt
 export default function TabLayout() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [userId, setUserId] = useState<number | null>(null);
+  const [isStaff, setIsStaff] = useState(false);
+  const [checkingRole, setCheckingRole] = useState(true);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Hàm fetch unread count
@@ -35,19 +37,27 @@ export default function TabLayout() {
     }
   }, [userId]);
 
-  // Lấy user ID khi component mount
+  // Lấy user ID và kiểm tra role khi component mount
   useEffect(() => {
     (async () => {
       try {
         const user = await getProfile();
         const userData = user?.data || user;
         const currentUserId = userData?.id;
-        
+        const role = userData?.role?.toLowerCase?.();
+
         if (currentUserId) {
           setUserId(currentUserId);
         }
+
+        if (role === "staff") {
+          setIsStaff(true);
+          router.replace("/screens/staff/SendNotificationScreen");
+        }
       } catch (error) {
         console.error("Error getting user profile:", error);
+      } finally {
+        setCheckingRole(false);
       }
     })();
   }, []);
@@ -89,6 +99,10 @@ export default function TabLayout() {
       }
     }, [userId, fetchUnreadCount])
   );
+
+  if (checkingRole || isStaff) {
+    return null;
+  }
 
   return (
     <Tabs

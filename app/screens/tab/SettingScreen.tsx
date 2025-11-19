@@ -16,7 +16,7 @@ import { AppColor } from "@/lib/utils/color";
 // (tuỳ chọn) nếu có guard
 // import { useAuthGuard } from "@/lib/hooks/useAuthGuard";
 
-type User = { id: number; name: string; email: string; phone?: string };
+type User = { id: number; name: string; email: string; phone?: string; role?: string };
 
 const Row = ({
   icon,
