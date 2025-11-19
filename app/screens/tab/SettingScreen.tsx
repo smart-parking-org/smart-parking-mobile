@@ -12,10 +12,11 @@ import {
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { getProfile, logout } from "@/lib/api/auth";
+import { AppColor } from "@/lib/utils/color";
 // (tuỳ chọn) nếu có guard
 // import { useAuthGuard } from "@/lib/hooks/useAuthGuard";
 
-type User = { id: number; name: string; email: string; phone?: string };
+type User = { id: number; name: string; email: string; phone?: string; role?: string };
 
 const Row = ({
   icon,
@@ -90,48 +91,35 @@ export default function SettingScreen() {
       },
     ]);
   };
-  const onLogout = async () => {
-    try {
-      await logout();
-      router.replace("/screens/auth/LoginScreen");
-    } catch (e: any) {
-      console.log("LOGOUT ERROR:", e?.response?.data || e?.message);
-      Alert.alert("Có lỗi khi đăng xuất");
-    }
-  };
 
   return (
-    <ScrollView className="flex-1 bg-gray-100">
-      {/* Header + Profile */}
-      <View className="bg-white px-5 pt-12 pb-5">
-        <Text className="text-2xl font-semibold mb-6 text-center">
-          Settings
-        </Text>
-
-        <View className="flex-row items-center">
-          <Image
-            source={{
-              uri: "https://i.pravatar.cc/150?img=12" /* thay bằng avatar user nếu có */,
-            }}
-            className="w-14 h-14 rounded-full"
-          />
-          <View className="ml-4">
-            {loadingUser ? (
-              <ActivityIndicator />
-            ) : (
-              <>
-                <Text className="text-lg font-medium">
-                  {user?.name ?? "Người dùng"}
-                </Text>
-                <Text className="text-gray-500">{user?.email ?? "-"}</Text>
-              </>
-            )}
-          </View>
+    <ScrollView
+      className="flex-1 bg-gray-100"
+      contentContainerClassName="pt-4 pb-8 px-4 grid gap-4"
+    >
+      <View className="flex-row items-center bg-white p-2 rounded-xl">
+        <Image
+          source={{
+            uri: "https://i.pravatar.cc/150?img=12" /* thay bằng avatar user nếu có */,
+          }}
+          className="w-14 h-14 rounded-full"
+        />
+        <View className="ml-4">
+          {loadingUser ? (
+            <ActivityIndicator />
+          ) : (
+            <>
+              <Text className="text-lg font-medium">
+                {user?.name ?? "Người dùng"}
+              </Text>
+              <Text className="text-gray-500">{user?.email ?? "-"}</Text>
+            </>
+          )}
         </View>
       </View>
 
       {/* Account */}
-      <View className="mt-3">
+      <View>
         <Text className="px-4 py-2 text-xs uppercase text-gray-500">
           Tài khoản
         </Text>
@@ -152,7 +140,7 @@ export default function SettingScreen() {
       </View>
 
       {/* Preferences */}
-      <View className="mt-6">
+      <View>
         <Text className="px-4 py-2 text-xs uppercase text-gray-500">
           Tuỳ chọn
         </Text>
@@ -175,7 +163,7 @@ export default function SettingScreen() {
       </View>
 
       {/* About */}
-      <View className="mt-6">
+      <View>
         <Text className="px-4 py-2 text-xs uppercase text-gray-500">Khác</Text>
         <View className="bg-white">
           <Row
@@ -193,10 +181,13 @@ export default function SettingScreen() {
       </View>
 
       {/* Logout */}
-      <View className="px-4 my-10">
+      <View>
         <TouchableOpacity
           onPress={handleLogout}
-          className="bg-red-500 rounded-2xl py-4 items-center"
+          className="rounded-2xl py-4 items-center"
+          style={{
+            backgroundColor: AppColor.DANGER,
+          }}
         >
           <Text className="text-white font-semibold">Đăng xuất</Text>
         </TouchableOpacity>

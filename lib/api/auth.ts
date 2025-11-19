@@ -1,8 +1,13 @@
 import { apiAuth } from "./client";
-import { saveTokens, clearTokens, getAccessToken, getRefreshToken } from "../storage/auth";
+import { saveTokens, clearTokens, getAccessToken } from "../storage/auth";
 import { parseApiError } from "../api/error";
+import { getFCMToken } from "@/lib/utils/fcm";
 
-type TokenPayload = { access_token: string; refresh_token?: string; expires_in?: number };
+type TokenPayload = {
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
+};
 
 export async function register(
   name: string,
@@ -23,7 +28,7 @@ export async function register(
     });
 
     if (data.access_token) {
-      await saveTokens(data.access_token, data.refresh_token, data.expires_in);
+      await saveTokens(data.access_token, data.expires_in);
     }
 
     return data;
@@ -39,8 +44,18 @@ export async function register(
 // }
 export async function login(email: string, password: string) {
   try {
-    const { data } = await apiAuth.post<TokenPayload>("/auth/login", { email, password });
-    await saveTokens(data.access_token, data.refresh_token, data.expires_in);
+    const { data } = await apiAuth.post<TokenPayload>("/auth/login", {
+      email,
+      password,
+    });
+    await saveTokens(data.access_token, data.expires_in);
+
+    const fcmToken = await getFCMToken();
+    if (fcmToken) {
+      updateFcmToken(fcmToken).catch((err) => {
+        console.error("Failed to update FCM token after login:", err);
+      });
+    }
     return data;
   } catch (err: any) {
     // log ra console cho dev xem chi tiết
@@ -68,14 +83,11 @@ export async function getProfile() {
 
 export async function logout() {
   try {
-    // nhiều API yêu cầu cả access + refresh khi logout
-    await apiAuth.post("/auth/logout", {
-      refresh_token: await getRefreshToken(),
-    }, {
-      headers: { Authorization: `Bearer ${await getAccessToken()}` },
-    });
-  } catch {}
-  await clearTokens();
+    await apiAuth.post("/auth/logout");
+  } catch {
+  } finally {
+    await clearTokens();
+  }
 }
 
 // Gửi OTP để đặt lại mật khẩu bằng email đã đăng ký
@@ -85,6 +97,50 @@ export async function sendPasswordResetOtp(email: string): Promise<void> {
     await apiAuth.post("/auth/forgot-password/request-otp", { email });
   } catch (err: any) {
     // Chuẩn hoá message gọn gàng cho UI
+    const message = parseApiError(err);
+    throw new Error(message);
+  }
+}
+
+export async function updateFcmToken(fcmToken: string): Promise<void> {
+  try {
+    await apiAuth.put("/me/fcm-token", { fcm_token: fcmToken });
+    console.log("FCM token updated successfully");
+  } catch (err: any) {
+    console.error(
+      "Error updating FCM token:",
+      err?.response?.data || err?.message
+    );
+  }
+}
+export async function verifyPasswordResetOtp(
+  email: string,
+  otp: string
+): Promise<{ reset_token: string }> {
+  try {
+    const { data } = await apiAuth.post<{ reset_token: string }>("/auth/forgot-password/verify-otp", {
+      email,
+      otp,
+    });
+    return data;
+  } catch (err: any) {
+    // Chuẩn hoá message gọn gàng cho UI
+    const message = parseApiError(err);
+    throw new Error(message);
+  }
+}
+export async function resetPassword(
+  email: string,
+  reset_token: string,
+  password: string
+): Promise<void> {
+  try {
+    await apiAuth.post("/auth/forgot-password/reset", {
+      email,
+      reset_token,
+      password,
+    });
+  } catch (err: any) {
     const message = parseApiError(err);
     throw new Error(message);
   }

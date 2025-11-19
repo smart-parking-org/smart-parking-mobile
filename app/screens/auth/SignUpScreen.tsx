@@ -141,14 +141,6 @@ export default function RegisterScreen() {
           </View>
 
           <Field
-            label="Mã căn hộ"
-            value={apartmentcode}
-            onChangeText={setApartmentCode}
-            placeholder="A1"
-            autoCapitalize="none"
-            icon="address-card"
-          />
-          <Field
             label="Mật khẩu"
             value={password}
             onChangeText={setPassword}

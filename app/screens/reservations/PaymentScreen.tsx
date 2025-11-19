@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,11 +6,16 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Linking,
+  Linking, // ✅ Từ react-native (dùng cho canOpenURL, openURL)
+  AppState,
+  Pressable,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { apiPayment } from "@/lib/api/client";
+import * as ExpoLinking from "expo-linking"; // ✅ Đổi tên thành ExpoLinking
+import { PageHeader } from "../../components/common/PageHeader";
+import { checkOutReservation } from "@/lib/api/booking";
 
 type ReservationDetails = {
   id: number;
@@ -18,6 +23,7 @@ type ReservationDetails = {
   status: string;
   check_in_at?: string;
   check_out_at?: string | null;
+  payment_id?: number;
   pricing_snapshot?: {
     hourly: number;
     daily_cap: number;
@@ -34,6 +40,11 @@ type ReservationDetails = {
   };
   start_time: string;
   end_time: string;
+  payment?: {
+    id: number;
+    amount: number;
+    status: string;
+  };
 };
 
 export default function PaymentScreen() {
@@ -48,9 +59,66 @@ export default function PaymentScreen() {
   );
   const [amount, setAmount] = useState(0);
 
+  // ✅ Xử lý deep link từ VNPAY
+  const handleDeepLink = useCallback(async ({ url }: { url: string }) => {
+    try {
+      // ✅ Sử dụng ExpoLinking.parse()
+      const parsed = ExpoLinking.parse(url);
+
+      if (parsed.path === "payment/result" || url.includes("payment/result")) {
+        const params = parsed.queryParams;
+        const status = params?.status as string;
+        const reservationIdFromLink = params?.reservation_id as string;
+
+        if (status === "PAID" && reservationIdFromLink) {
+          // Navigate tới QRCheckoutScreen để hiển thị QR code
+          router.replace({
+            pathname: "/screens/reservations/QRCheckoutScreen",
+            params: {
+              reservationId: reservationIdFromLink,
+            },
+          });
+        } else if (status === "FAILED") {
+          Alert.alert(
+            "Thanh toán thất bại",
+            "Vui lòng thử lại hoặc chọn phương thức thanh toán khác."
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error handling deep link:", error);
+    }
+  }, []);
+
   useEffect(() => {
     loadReservationDetails();
-  }, []);
+
+    // ✅ Lắng nghe deep link khi app được mở từ VNPAY
+    const subscription = ExpoLinking.addEventListener("url", handleDeepLink);
+
+    // ✅ Kiểm tra URL khi app mở (nếu app đã mở sẵn)
+    ExpoLinking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink({ url });
+      }
+    });
+
+    // ✅ Lắng nghe khi app quay lại foreground
+    const subscriptionAppState = AppState.addEventListener(
+      "change",
+      (nextAppState) => {
+        if (nextAppState === "active") {
+          // Khi app active, event listener sẽ tự động bắt deep link
+          // Không cần check thủ công vì addEventListener đã xử lý
+        }
+      }
+    );
+
+    return () => {
+      subscription.remove();
+      subscriptionAppState.remove();
+    };
+  }, [handleDeepLink]);
 
   const loadReservationDetails = async () => {
     if (!reservationId) return;
@@ -62,9 +130,43 @@ export default function PaymentScreen() {
       );
       setReservation(data.data);
 
-      // Tính tiền dựa trên thời gian thực tế
-      const calculatedAmount = calculateAmount(data.data);
-      setAmount(calculatedAmount);
+      console.log("📋 Reservation data:", JSON.stringify(data.data, null, 2));
+
+      // Nếu đã có payment (status = pending_checkout), lấy amount từ payment
+      if (data.data.payment && data.data.payment.amount) {
+        console.log("💰 Using amount from payment:", data.data.payment.amount);
+        setAmount(data.data.payment.amount);
+      } else if (data.data.payment_id) {
+        // Nếu có payment_id nhưng chưa load payment, load payment để lấy amount
+        try {
+          const paymentResponse = await apiPayment.get(
+            `/payments/by-order/${data.data.reservation_code}`
+          );
+          if (paymentResponse.data && paymentResponse.data.amount) {
+            console.log(
+              "💰 Using amount from loaded payment:",
+              paymentResponse.data.amount
+            );
+            setAmount(paymentResponse.data.amount);
+          } else {
+            // Fallback: tính lại từ pricing_snapshot
+            const calculatedAmount = calculateAmount(data.data);
+            console.log("💰 Calculated amount:", calculatedAmount);
+            setAmount(calculatedAmount);
+          }
+        } catch (paymentError) {
+          console.error("Error loading payment:", paymentError);
+          // Fallback: tính lại từ pricing_snapshot
+          const calculatedAmount = calculateAmount(data.data);
+          console.log("💰 Calculated amount (fallback):", calculatedAmount);
+          setAmount(calculatedAmount);
+        }
+      } else {
+        // Chưa có payment, tính tiền dựa trên thời gian thực tế
+        const calculatedAmount = calculateAmount(data.data);
+        console.log("💰 Calculated amount:", calculatedAmount);
+        setAmount(calculatedAmount);
+      }
     } catch (error: any) {
       console.error("Error loading reservation:", error);
       Alert.alert("Lỗi", "Không thể tải thông tin đặt chỗ");
@@ -75,45 +177,78 @@ export default function PaymentScreen() {
   };
 
   const calculateAmount = (reservation: ReservationDetails): number => {
-    if (!reservation.pricing_snapshot) return 0;
+    if (!reservation.pricing_snapshot) {
+      console.warn("⚠️ No pricing_snapshot found in reservation");
+      return 0;
+    }
 
     const pricing = reservation.pricing_snapshot;
+    console.log("💵 Pricing snapshot:", pricing);
 
-    // Tính thời gian đỗ
-    const checkIn = new Date(reservation.check_in_at || reservation.start_time);
-    const checkOut = new Date(
-      reservation.check_out_at || reservation.end_time || new Date()
+    // Tính số giờ đã đặt ban đầu (từ start_time đến end_time)
+    const startTime = new Date(reservation.start_time);
+    const endTime = new Date(reservation.end_time);
+    const bookedDurationMinutes = Math.floor(
+      (endTime.getTime() - startTime.getTime()) / 60000
     );
-    const durationMinutes = Math.floor(
-      (checkOut.getTime() - checkIn.getTime()) / 60000
-    );
+    const bookedHours = bookedDurationMinutes / 60;
+    console.log("📅 Booked hours:", bookedHours);
 
-    // Làm tròn theo rounding_minutes
-    const roundingMinutes = pricing.rounding_minutes || 30;
-    const roundedMinutes =
-      Math.ceil(durationMinutes / roundingMinutes) * roundingMinutes;
+    // Nếu chưa checkout (chưa có check_out_at) → tính theo số giờ đã đặt
+    // Nếu đã checkout (có check_out_at) → kiểm tra xem có lố quá không
+    let billableHours = bookedHours;
 
-    // Tính giờ
-    const hours = roundedMinutes / 60;
+    if (reservation.check_out_at) {
+      // Đã checkout, kiểm tra xem có lố quá số giờ đã đặt không
+      const checkIn = new Date(
+        reservation.check_in_at || reservation.start_time
+      );
+      const checkOut = new Date(reservation.check_out_at);
+      const actualDurationMinutes = Math.floor(
+        (checkOut.getTime() - checkIn.getTime()) / 60000
+      );
+      const actualHours = actualDurationMinutes / 60;
+      console.log("⏱️ Actual parking hours:", actualHours);
 
-    // Giá cơ bản
-    let totalAmount = pricing.hourly * hours;
+      // Nếu thời gian thực tế > thời gian đã đặt → tính thêm 1 giờ
+      if (actualHours > bookedHours) {
+        billableHours = bookedHours + 1;
+        console.log(
+          "➕ Exceeded booked time, adding 1 hour. Total:",
+          billableHours
+        );
+      } else {
+        console.log(
+          "✅ Within booked time, using booked hours:",
+          billableHours
+        );
+      }
+    } else {
+      // Chưa checkout → tính theo số giờ đã đặt
+      console.log("✅ Not checked out yet, using booked hours:", billableHours);
+    }
+
+    // Giá cơ bản: số giờ tính × hourly
+    let totalAmount = pricing.hourly * billableHours;
+    console.log("💰 Base amount:", totalAmount, "for", billableHours, "hours");
 
     // Áp dụng peak multiplier nếu có
     if (pricing.peak_enabled && pricing.peak_multiplier) {
       totalAmount = totalAmount * pricing.peak_multiplier;
+      console.log("📈 Applied peak multiplier:", pricing.peak_multiplier);
     }
 
     // Áp dụng daily cap
     if (pricing.daily_cap && totalAmount > pricing.daily_cap) {
       totalAmount = pricing.daily_cap;
+      console.log("🔝 Applied daily cap:", pricing.daily_cap);
     }
 
     return Math.ceil(totalAmount);
   };
 
   const handlePayment = async () => {
-    if (!reservation || amount === 0) {
+    if (!reservation || amount === 0 || !reservationId) {
       Alert.alert("Lỗi", "Số tiền thanh toán không hợp lệ");
       return;
     }
@@ -121,37 +256,23 @@ export default function PaymentScreen() {
     try {
       setProcessing(true);
 
-      // 1. Tạo payment link từ VNPAY
+      // ✅ 1. Tạo payment link từ VNPAY với reservation_id
       const response = await apiPayment.post("/payments/create", {
         order_id: reservation.reservation_code,
+        reservation_id: parseInt(reservationId), // ✅ Gửi reservation_id
         amount: amount,
         bank_code: null,
       });
 
-      const { payUrl, txnRef } = response.data;
+      const { payUrl } = response.data;
 
       console.log("🔗 Payment URL:", payUrl);
 
-      // 2. Mở browser với payment URL
+      // ✅ 2. Mở browser với payment URL
       const canOpen = await Linking.canOpenURL(payUrl);
       if (canOpen) {
         await Linking.openURL(payUrl);
-
-        // 3. Hiển thị thông báo
-        Alert.alert(
-          "Đang xử lý thanh toán",
-          "Vui lòng hoàn tất thanh toán trên trình duyệt. Bạn sẽ được quay lại app sau khi thanh toán xong.",
-          [
-            {
-              text: "Đã thanh toán",
-              onPress: () => {
-                // Check payment status và check-out
-                pollAndCheckout();
-              },
-            },
-            { text: "Hủy", style: "cancel" },
-          ]
-        );
+        // Không cần Alert nữa vì sẽ tự động redirect về app
       } else {
         Alert.alert("Lỗi", "Không thể mở trình duyệt thanh toán");
       }
@@ -166,26 +287,7 @@ export default function PaymentScreen() {
     }
   };
 
-  const pollAndCheckout = async () => {
-    if (!reservationId) return;
-
-    try {
-      Alert.alert("Đang xác nhận thanh toán", "Vui lòng chờ...");
-
-      // Gọi API check-out (backend sẽ tự tính tiền và tạo payment)
-      await apiPayment.put(`/reservations/${reservationId}/check-out`);
-
-      Alert.alert("Thanh toán thành công!", "Cảm ơn bạn đã sử dụng dịch vụ.", [
-        {
-          text: "OK",
-          onPress: () => router.push("/screens/tab/QRScreen"),
-        },
-      ]);
-    } catch (error: any) {
-      console.error("Error during checkout:", error);
-      Alert.alert("Lỗi", "Không thể xác nhận thanh toán");
-    }
-  };
+  // ✅ Xóa hàm pollAndCheckout vì không cần nữa (backend tự động check-out qua IPN)
 
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -223,10 +325,80 @@ export default function PaymentScreen() {
       )
     : 0;
 
+  const handleCheckout = async (paymentMethod: "online" | "offline") => {
+    if (!reservation || !reservationId) {
+      Alert.alert("Lỗi", "Thông tin đặt chỗ không hợp lệ");
+      return;
+    }
+
+    try {
+      setProcessing(true);
+
+      // Gọi API checkout với payment_method
+      const response = await checkOutReservation(
+        parseInt(reservationId),
+        paymentMethod
+      );
+
+      // ✅ Kiểm tra monthly pass từ response checkout (giống như check-in)
+      const monthlyPass = response.data?.data?.monthly_pass;
+      const isFree = response.data?.data?.is_free;
+
+      if (monthlyPass && isFree) {
+        // Có monthly pass → đã checkout thành công, không cần thanh toán
+        Alert.alert(
+          "Check-out thành công",
+          "Vé tháng của bạn đã được áp dụng. Bạn không cần thanh toán.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                router.replace("/screens/tab/QRScreen");
+              },
+            },
+          ]
+        );
+        return;
+      }
+
+      if (paymentMethod === "offline") {
+        // Thanh toán trực tiếp → pending_checkout, chờ nhân viên quét
+        Alert.alert(
+          "Thanh toán trực tiếp",
+          `Hãy vui lòng ra cổng đưa mã này cho nhân viên và thanh toán:\n\n${reservation.reservation_code}`,
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                router.replace("/screens/tab/QRScreen");
+              },
+            },
+          ]
+        );
+      } else {
+        // Thanh toán online → pending_payment → Navigate tới PaymentScreen
+        router.replace({
+          pathname: "/screens/reservations/PaymentScreen",
+          params: {
+            reservationId: reservationId,
+          },
+        });
+      }
+    } catch (error: any) {
+      console.error("Error during checkout:", error);
+      Alert.alert(
+        "Lỗi",
+        error.response?.data?.message || "Không thể thực hiện checkout"
+      );
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
+      <PageHeader title="THANH TOÁN" />
       <View style={{ padding: 24 }}>
-        {/* Header */}
         <View
           style={{
             backgroundColor: "white",
@@ -236,7 +408,7 @@ export default function PaymentScreen() {
           }}
         >
           <Text style={{ fontSize: 24, fontWeight: "bold", marginBottom: 8 }}>
-            Thanh toán
+            Mã đặt chỗ
           </Text>
           <View
             style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}
@@ -367,6 +539,7 @@ export default function PaymentScreen() {
         </View>
 
         {/* Button thanh toán */}
+
         <TouchableOpacity
           onPress={handlePayment}
           disabled={processing}
@@ -390,9 +563,41 @@ export default function PaymentScreen() {
                   marginLeft: 8,
                 }}
               >
-                Thanh toán qua VNPAY
+                Thanh toán trực tuyến
               </Text>
             </View>
+          )}
+        </TouchableOpacity>
+
+        <View style={{ marginTop: 10, alignItems: "center" }}></View>
+        <TouchableOpacity
+          onPress={() => handleCheckout("offline")}
+          disabled={processing}
+          style={{
+            backgroundColor: processing ? "#9ca3af" : "#3b82f6",
+            borderRadius: 12,
+            padding: 16,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {processing ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <>
+              <Ionicons name="cash" size={24} color="white" />
+              <Text
+                style={{
+                  color: "white",
+                  fontWeight: "bold",
+                  fontSize: 18,
+                  marginLeft: 8,
+                }}
+              >
+                Thanh toán trực tiếp
+              </Text>
+            </>
           )}
         </TouchableOpacity>
 

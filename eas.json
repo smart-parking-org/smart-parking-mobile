@@ -1,0 +1,31 @@
+{
+  "cli": {
+    "version": ">= 16.26.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_API_AUTH_URL": "http://192.168.1.211:8001/api",
+        "EXPO_PUBLIC_API_PAYMENT_URL": "http://192.168.1.211:8002/api"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_API_AUTH_URL": "http://192.168.1.211:8001/api",
+        "EXPO_PUBLIC_API_PAYMENT_URL": "http://192.168.1.211:8002/api"
+      }
+    },
+    "production": {
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

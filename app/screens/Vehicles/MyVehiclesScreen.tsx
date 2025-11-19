@@ -1,42 +1,82 @@
-import React, { useMemo, useState, useEffect, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
-  TouchableOpacity,
-  FlatList,
-  SafeAreaView,
   Alert,
-  RefreshControl,
   ActivityIndicator,
+  StatusBar,
+  Animated,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { router, useFocusEffect } from "expo-router"; // Thêm useFocusEffect
-import VehicleSwipeRow, {
-  Vehicle,
-} from "@/app/components/vehicle/VehicleSwipeRow";
+import { Stack, useFocusEffect } from "expo-router";
+import * as Haptics from "expo-haptics";
 import {
   getVehicles,
   removeVehicle,
   setPrimaryVehicle,
+  createVehicle,
+  updateVehicle,
+  type VehicleType,
 } from "@/lib/api/vehicles";
 import { getProfile } from "@/lib/api/auth";
+import { AppColor } from "@/lib/utils/color";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { EmptyState } from "@/app/components/vehicle/EmtyState";
+import { SearchBar } from "@/app/components/vehicle/SearchBar";
+import { FilterChips } from "@/app/components/vehicle/FilterChips";
+import { ScreenHeader } from "@/app/components/vehicle/ScreenHeader";
+import { NoResultState } from "@/app/components/vehicle/NoResultState";
+import { VehicleList } from "@/app/components/vehicle/VehicleList";
+import { AddVehicleButton } from "@/app/components/vehicle/AddVehicleButton";
+import { DeleteVehicleModal } from "@/app/components/vehicle/DeleteVehicleModal";
+import {
+  VehicleFormModal,
+  VEHICLE_TYPES,
+} from "@/app/components/vehicle/VehicleFormModal";
+import { SuccessToast } from "@/app/components/vehicle/SuccessToast";
+import { VehicleActionModal } from "@/app/components/vehicle/VehicleActionModal"; // Thêm import
+import type { Option } from "@/app/components/ui/Select";
+import { Vehicle } from "@/app/components/vehicle/VehicleCard";
 
 export default function MyVehiclesScreen() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [userId, setUserId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [settingDefaultId, setSettingDefaultId] = useState<number | null>(null);
 
-  // Load user và vehicles
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedFilter, setSelectedFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"compact" | "full">("compact");
+
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null);
+
+  // Thêm state cho action modal
+  const [actionModalVisible, setActionModalVisible] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const actionSlideAnim = useRef(new Animated.Value(500)).current;
+
+  const [formModalVisible, setFormModalVisible] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingVehicleId, setEditingVehicleId] = useState<number | null>(null);
+  const [vehicleType, setVehicleType] = useState<Option | null>(null);
+  const [licensePlate, setLicensePlate] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [userId, setUserId] = useState<number>(0);
+
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const formSlideAnim = useRef(new Animated.Value(600)).current;
+
+  // ... existing loadUserAndVehicles, useFocusEffect, filteredVehicles, primaryVehicle, useEffect ...
+
   const loadUserAndVehicles = async () => {
     try {
       const user = await getProfile();
       setUserId(user.id);
-
       const response = await getVehicles(user.id);
-      setVehicles(response.data);
+      setVehicles(response.data ?? []);
     } catch (error: any) {
-      console.error("Lỗi tải phương tiện:", error);
       Alert.alert(
         "Lỗi",
         error.message || "Không thể tải danh sách phương tiện"
@@ -47,161 +87,358 @@ export default function MyVehiclesScreen() {
     }
   };
 
-  // Sử dụng useFocusEffect để reload khi quay lại màn hình
   useFocusEffect(
     useCallback(() => {
-      // Chỉ load nếu đã có userId (không load lần đầu khi mount)
-      if (userId) {
-        loadUserAndVehicles();
-      } else {
-        // Lần đầu tiên mới load
-        loadUserAndVehicles();
-      }
-    }, [userId])
+      loadUserAndVehicles();
+    }, [])
   );
 
-  // useEffect ban đầu để load lần đầu
-  useEffect(() => {
-    // Không cần load ở đây vì useFocusEffect sẽ handle
-  }, []);
+  const filteredVehicles = useMemo(() => {
+    let result = [...vehicles];
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadUserAndVehicles();
-  };
+    if (selectedFilter !== "all") {
+      result = result.filter((v) => v.vehicle_type === selectedFilter);
+    }
 
-  const def = useMemo(() => vehicles.find((v) => v.is_primary), [vehicles]);
-  const others = useMemo(
-    () => vehicles.filter((v) => !v.is_primary),
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter((v) =>
+        v.license_plate.toLowerCase().includes(query)
+      );
+    }
+
+    result.sort((a, b) => {
+      if (a.is_primary && !b.is_primary) return -1;
+      if (!a.is_primary && b.is_primary) return 1;
+      return a.license_plate.localeCompare(b.license_plate);
+    });
+
+    return result;
+  }, [vehicles, selectedFilter, searchQuery]);
+
+  const primaryVehicle = useMemo(
+    () => vehicles.find((v) => v.is_primary),
     [vehicles]
   );
 
-  // Đặt mặc định
-  const setDefault = async (id: number) => {
+  // ... existing showSuccess, openAddForm, openEditForm, closeFormModal, handleSubmitForm ...
+
+  const showSuccess = (message: string) => {
+    setSuccessMessage(message);
+    Animated.sequence([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.delay(2000),
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setSuccessMessage(null));
+  };
+
+  const openAddForm = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsEditMode(false);
+    setEditingVehicleId(null);
+    setLicensePlate("");
+    setVehicleType(null);
+    setFormModalVisible(true);
+    Animated.spring(formSlideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 60,
+      friction: 10,
+    }).start();
+  };
+
+  const openEditForm = (vehicle: Vehicle) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsEditMode(true);
+    setEditingVehicleId(vehicle.id);
+    setLicensePlate(vehicle.license_plate);
+    const option = VEHICLE_TYPES.find((t) => t.value === vehicle.vehicle_type);
+    setVehicleType(option ?? null);
+    setFormModalVisible(true);
+    Animated.spring(formSlideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 60,
+      friction: 10,
+    }).start();
+  };
+
+  const closeFormModal = () => {
+    Animated.timing(formSlideAnim, {
+      toValue: 600,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => {
+      setFormModalVisible(false);
+      setIsEditMode(false);
+      setEditingVehicleId(null);
+      setLicensePlate("");
+      setVehicleType(null);
+    });
+  };
+
+  const handleSubmitForm = async () => {
+    if (!licensePlate.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập biển số");
+      return;
+    }
+    if (!vehicleType) {
+      Alert.alert("Lỗi", "Vui lòng chọn Loại phương tiện");
+      return;
+    }
+
     try {
-      await setPrimaryVehicle(id);
-      await loadUserAndVehicles(); // Reload để cập nhật
-      Alert.alert("Thành công", "Đã đặt làm phương tiện mặc định");
+      setSubmitting(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      if (isEditMode && editingVehicleId) {
+        await updateVehicle(editingVehicleId, {
+          license_plate: licensePlate,
+          vehicle_type: vehicleType.value as VehicleType,
+        });
+        showSuccess("Đã cập nhật phương tiện");
+      } else {
+        await createVehicle({
+          user_id: userId,
+          license_plate: licensePlate,
+          vehicle_type: vehicleType.value as VehicleType,
+        });
+        showSuccess("Đã thêm phương tiện mới");
+      }
+      closeFormModal();
+      await loadUserAndVehicles();
     } catch (error: any) {
-      Alert.alert("Lỗi", error.message || "Không thể đặt phương tiện mặc định");
+      Alert.alert("Lỗi", error.message || "Không thể lưu phương tiện");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  // Xóa phương tiện
-  const confirmDelete = async (v: Vehicle) => {
-    if (v.is_primary) {
+  // Thêm các hàm mới cho action modal
+  const openActionModal = (vehicle: Vehicle) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedVehicle(vehicle);
+    setActionModalVisible(true);
+    Animated.spring(actionSlideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 60,
+      friction: 10,
+    }).start();
+  };
+
+  const closeActionModal = () => {
+    Animated.timing(actionSlideAnim, {
+      toValue: 500,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => {
+      setActionModalVisible(false);
+      setSelectedVehicle(null);
+    });
+  };
+
+  const handleActionEdit = () => {
+    if (selectedVehicle) {
+      closeActionModal();
+      setTimeout(() => {
+        openEditForm(selectedVehicle);
+      }, 300);
+    }
+  };
+
+  const handleActionSetDefault = () => {
+    if (selectedVehicle) {
+      closeActionModal();
+      setTimeout(() => {
+        setDefault(selectedVehicle);
+      }, 300);
+    }
+  };
+
+  const handleActionDelete = () => {
+    if (selectedVehicle) {
+      closeActionModal();
+      setTimeout(() => {
+        confirmDelete(selectedVehicle);
+      }, 300);
+    }
+  };
+
+  const setDefault = async (vehicle: Vehicle) => {
+    if (vehicle.is_primary) return;
+    try {
+      setSettingDefaultId(vehicle.id);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await setPrimaryVehicle(vehicle.id);
+      await loadUserAndVehicles();
+      showSuccess("Đã đặt làm phương tiện mặc định");
+    } catch (error: any) {
+      Alert.alert("Lỗi", error.message || "Không thể đặt mặc định");
+    } finally {
+      setSettingDefaultId(null);
+    }
+  };
+
+  const confirmDelete = (vehicle: Vehicle) => {
+    if (vehicle.is_primary) {
       Alert.alert(
         "Không thể xóa",
-        "Đây là phương tiện mặc định. Hãy đặt mặc định phương tiện khác trước khi xóa."
+        "Vui lòng chọn phương tiện khác làm mặc định trước khi xóa phương tiện này."
       );
       return;
     }
-    Alert.alert("Xóa phương tiện?", `${v.license_plate}`, [
-      { text: "Hủy", style: "cancel" },
-      {
-        text: "Xóa",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await removeVehicle(v.id);
-            setVehicles((prev) => prev.filter((x) => x.id !== v.id));
-          } catch (e: any) {
-            Alert.alert("Lỗi", e.message || "Không thể xóa phương tiện");
-          }
-        },
-      },
-    ]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setVehicleToDelete(vehicle);
+    setDeleteModalVisible(true);
   };
 
-  // Sửa phương tiện
-  const editVehicle = (v: Vehicle) => {
-    router.push({
-      pathname: "/screens/Vehicles/AddVehicleScreen",
-      params: { id: String(v.id) },
-    });
+  const handleDelete = async () => {
+    if (!vehicleToDelete) return;
+    try {
+      setDeletingId(vehicleToDelete.id);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await removeVehicle(vehicleToDelete.id);
+      setVehicles((prev) => prev.filter((v) => v.id !== vehicleToDelete.id));
+      setDeleteModalVisible(false);
+      setVehicleToDelete(null);
+      showSuccess("Đã xóa phương tiện");
+    } catch (error: any) {
+      Alert.alert("Lỗi", error.message || "Không thể xóa phương tiện");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center">
-        <ActivityIndicator size="large" color="#3B82F6" />
-      </SafeAreaView>
+      <>
+        <StatusBar
+          barStyle="light-content"
+          backgroundColor={AppColor.PRIMARY}
+        />
+        <SafeAreaView
+          style={{ flex: 1, backgroundColor: "#F9FAFB" }}
+          edges={["top"]}
+        >
+          <Stack.Screen
+            options={{
+              headerShown: true,
+              title: "Phương tiện của tôi",
+              headerTitleAlign: "center",
+              headerStyle: { backgroundColor: AppColor.PRIMARY },
+              headerShadowVisible: false,
+              headerTitleStyle: {
+                fontWeight: "600",
+                fontSize: 17,
+                color: "#fff",
+              },
+              headerTintColor: "#fff",
+            }}
+          />
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="large" color={AppColor.PRIMARY} />
+            <Text className="mt-4 text-gray-500">Đang tải...</Text>
+          </View>
+        </SafeAreaView>
+      </>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      <View className="px-4 pt-2 pb-3 flex-row items-center justify-between">
-        <TouchableOpacity
-          onPress={() => router.back()}
-          className="h-10 w-10 items-center justify-center"
-        >
-          <Ionicons name="chevron-back" size={22} color="#000000" />
-        </TouchableOpacity>
-        <Text className="text-black font-semibold">PHƯƠNG TIỆN</Text>
-        <View className="h-10 w-10" />
-      </View>
-
-      <FlatList
-        data={[{ key: "default" }, { key: "list" }]}
-        keyExtractor={(i) => i.key}
-        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        renderItem={({ item }) => {
-          if (item.key === "default") {
-            return (
-              <View className="mb-5">
-                <Text className="text-[12px] text-gray-500 mb-2">
-                  PHƯƠNG TIỆN MẶC ĐỊNH
-                </Text>
-                {def ? (
-                  <VehicleSwipeRow
-                    v={def}
-                    onPress={() => setDefault(def.id)}
-                    onEdit={editVehicle}
-                    onDelete={confirmDelete}
-                    canDelete={!def.is_primary}
-                  />
-                ) : (
-                  <View className="px-4 py-3 rounded-2xl border border-dashed border-gray-300 bg-white">
-                    <Text className="text-gray-500">
-                      Chưa có phương tiện mặc định
-                    </Text>
-                  </View>
-                )}
-              </View>
-            );
-          }
-
-          return (
-            <View>
-              <Text className="text-[12px] text-gray-500 mb-2">
-                TẤT CẢ PHƯƠNG TIỆN ({vehicles.length})
-              </Text>
-              {others.map((v) => (
-                <VehicleSwipeRow
-                  key={v.id}
-                  v={v}
-                  onPress={() => setDefault(v.id)}
-                  onEdit={editVehicle}
-                  onDelete={confirmDelete}
-                />
-              ))}
-            </View>
-          );
+    <>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: "QUẢN LÝ PHƯƠNG TIỆN",
+          headerTitleAlign: "center",
+          headerStyle: { backgroundColor: AppColor.PRIMARY },
+          headerShadowVisible: false,
+          headerTitleStyle: { fontWeight: "800", fontSize: 16, color: "#fff" },
         }}
       />
 
-      <View className="px-4 pb-5">
-        <TouchableOpacity
-          onPress={() => router.push("/screens/Vehicles/AddVehicleScreen")}
-          className="h-12 rounded-2xl bg-blue-600 items-center justify-center"
-        >
-          <Text className="text-white font-semibold">THÊM PHƯƠNG TIỆN</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: "#F9FAFB" }}
+        edges={["bottom"]}
+      >
+        <SuccessToast message={successMessage} fadeAnim={fadeAnim} />
+
+        <SearchBar value={searchQuery} onChange={setSearchQuery} />
+        <FilterChips selected={selectedFilter} onSelect={setSelectedFilter} />
+        <ScreenHeader
+          total={vehicles.length}
+          filtered={filteredVehicles.length}
+          primary={primaryVehicle}
+        />
+
+        {vehicles.length === 0 ? (
+          <EmptyState onAdd={openAddForm} />
+        ) : filteredVehicles.length === 0 ? (
+          <NoResultState
+            onReset={() => {
+              setSearchQuery("");
+              setSelectedFilter("all");
+            }}
+          />
+        ) : (
+          <VehicleList
+            vehicles={vehicles}
+            filteredVehicles={filteredVehicles}
+            deletingId={deletingId}
+            settingDefaultId={settingDefaultId}
+            onSetDefault={setDefault}
+            onEdit={openEditForm}
+            onDelete={confirmDelete}
+            onOpenActions={openActionModal} // Thêm prop mới
+          />
+        )}
+
+        {vehicles.length > 0 && <AddVehicleButton onPress={openAddForm} />}
+
+        {/* Action Modal */}
+        <VehicleActionModal
+          visible={actionModalVisible}
+          vehicle={selectedVehicle}
+          onClose={closeActionModal}
+          onEdit={handleActionEdit}
+          onSetDefault={handleActionSetDefault}
+          onDelete={handleActionDelete}
+          slideAnim={actionSlideAnim}
+        />
+
+        <VehicleFormModal
+          visible={formModalVisible}
+          isEditMode={isEditMode}
+          licensePlate={licensePlate}
+          vehicleType={vehicleType}
+          submitting={submitting}
+          formSlideAnim={formSlideAnim}
+          onChangeLicense={setLicensePlate}
+          onChangeType={setVehicleType}
+          onSubmit={handleSubmitForm}
+          onClose={closeFormModal}
+        />
+
+        <DeleteVehicleModal
+          visible={deleteModalVisible}
+          vehicle={vehicleToDelete}
+          deletingId={deletingId}
+          onCancel={() => {
+            setDeleteModalVisible(false);
+            setVehicleToDelete(null);
+          }}
+          onConfirm={handleDelete}
+        />
+      </SafeAreaView>
+    </>
   );
 }
