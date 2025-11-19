@@ -26,7 +26,13 @@ export function AddVehicleButton({ onPress }: AddVehicleButtonProps) {
         <View className="w-8 h-8 rounded-full items-center justify-center bg-white/20 mr-2">
           <Ionicons name="add" size={22} color="#fff" />
         </View>
-        <Text className="text-white font-bold text-base">Thêm phương tiện</Text>
+        <Text 
+          className="text-white font-bold text-base"
+          numberOfLines={1}
+          style={{ flexShrink: 0 }}
+        >
+          Thêm phương tiện
+        </Text>
       </TouchableOpacity>
     </View>
   );

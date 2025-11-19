@@ -10,9 +10,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   KeyboardAvoidingView,
+  TextInput,
+  Keyboard,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import Field from "@/app/components/ui/Field";
 import Select, { Option } from "@/app/components/ui/Select";
 import { AppColor } from "@/lib/utils/color";
@@ -53,6 +54,8 @@ export function VehicleFormModal({
     Boolean(licensePlate.trim()) && Boolean(vehicleType) && !submitting;
 
   const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
+
   useEffect(() => {
     Animated.timing(overlayOpacity, {
       toValue: visible ? 1 : 0,
@@ -61,10 +64,29 @@ export function VehicleFormModal({
     }).start();
   }, [visible]);
 
+  useEffect(() => {
+    const hideSubscription = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => {
+        // Không reset scroll, để KeyboardAvoidingView tự xử lý
+        // Chỉ đảm bảo scroll không bị stuck ở vị trí xa
+      }
+    );
+
+    return () => {
+      hideSubscription.remove();
+    };
+  }, []);
+
   const platePreview =
     licensePlate.trim().length > 0
       ? licensePlate.trim().toUpperCase()
-      : "XX-00000";
+      : "XX-000.00";
+  
+  // Kiểm tra format biển số theo regex mới
+  const isValidPlateFormat = /^[0-9]{2}(?:[ABCEFGHKLMNPSTUVXYZ]{1,2})(?:[1-9])?-(?:[0-9]{4}|[0-9]{3}\.[0-9]{2})$/.test(
+    licensePlate.trim().toUpperCase()
+  );
 
   return (
     <Modal
@@ -90,15 +112,12 @@ export function VehicleFormModal({
               style={{ transform: [{ translateY: formSlideAnim }] }}
             >
               <Pressable onPress={(e) => e.stopPropagation()}>
-                {/* Header với gradient */}
-                <LinearGradient
-                  colors={[AppColor.PRIMARY, AppColor.SECONDARY]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
+                {/* Header với màu primary */}
+                <View
                   style={{
+                    backgroundColor: AppColor.PRIMARY,
                     borderTopLeftRadius: 28,
                     borderTopRightRadius: 28,
-                    overflow: "hidden",
                     paddingTop: 10,
                     paddingBottom: 20,
                   }}
@@ -227,17 +246,19 @@ export function VehicleFormModal({
                       </View>
                     )}
                   </View>
-                </LinearGradient>
+                </View>
 
                 {/* Body */}
                 <ScrollView
+                  ref={scrollViewRef}
                   style={{ backgroundColor: "#F9FAFB" }}
                   keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}
+                  bounces={false}
                   contentContainerStyle={{
                     paddingHorizontal: 20,
                     paddingTop: 16,
-                    paddingBottom: Platform.OS === "ios" ? 24 : 100,
+                    paddingBottom: 24,
                   }}
                 >
                   {/* Card: Thông tin */}
@@ -298,17 +319,105 @@ export function VehicleFormModal({
                         value={vehicleType}
                         options={VEHICLE_TYPES}
                         onSelect={onChangeType}
-                        disabled={isEditMode}
                       />
                     </View>
 
-                    <Field
-                      label="Biển số xe"
-                      value={licensePlate}
-                      onChangeText={onChangeLicense}
-                      placeholder="VD: 51A-12345"
-                      autoCapitalize="characters"
-                    />
+                    <View style={{ marginBottom: 12 }}>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          marginBottom: 4,
+                        }}
+                      >
+                        <Text style={{ color: "#6B7280", fontSize: 14 }}>
+                          Biển số xe
+                        </Text>
+                      </View>
+                      <View style={{ position: "relative" }}>
+                        <TextInput
+                          value={licensePlate}
+                          onChangeText={(text) => {
+                            // Tự động chuyển thành uppercase
+                            onChangeLicense(text.toUpperCase());
+                          }}
+                          placeholder="51A-123.45"
+                          placeholderTextColor="#9ca3af"
+                          autoCapitalize="characters"
+                          style={{
+                            height: 48,
+                            borderRadius: 16,
+                            paddingHorizontal: 16,
+                            paddingRight: isValidPlateFormat ? 44 : 16,
+                            borderWidth: 1,
+                            borderColor: isValidPlateFormat
+                              ? AppColor.PRIMARY
+                              : "#D1D5DB",
+                            backgroundColor: "#fff",
+                            fontSize: 15,
+                            textTransform: "uppercase",
+                          }}
+                        />
+                        {isValidPlateFormat && (
+                          <View
+                            style={{
+                              position: "absolute",
+                              right: 12,
+                              top: 12,
+                              width: 24,
+                              height: 24,
+                              borderRadius: 12,
+                              backgroundColor: AppColor.PRIMARY,
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <Ionicons name="checkmark" size={16} color="#fff" />
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    
+                    {/* Mẫu biển số */}
+                    <View
+                      style={{
+                        marginTop: 6,
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: 8,
+                        backgroundColor: "#F0F9FF",
+                        borderWidth: 1,
+                        borderColor: "#BAE6FD",
+                      }}
+                    >
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <Ionicons
+                          name="information-circle-outline"
+                          size={14}
+                          color="#0284C7"
+                          style={{ marginRight: 6 }}
+                        />
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: "#0284C7",
+                            fontWeight: "600",
+                          }}
+                        >
+                          Mẫu biển số:{" "}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: "#0C4A6E",
+                            fontWeight: "700",
+                            fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+                          }}
+                        >
+                          51A-123.45
+                        </Text>
+                      </View>
+                    </View>
 
                     <View
                       style={{
@@ -327,94 +436,11 @@ export function VehicleFormModal({
                         }}
                       >
                         • Viết HOA và đúng định dạng để kiểm tra nhanh{"\n"}•
-                        Khi chỉnh sửa sẽ không thể đổi loại phương tiện
+                        {isEditMode
+                          ? " Khi chỉnh sửa sẽ yêu cầu admin duyệt lại"
+                          : " Phương tiện cần được admin duyệt trước khi sử dụng"}
                       </Text>
                     </View>
-                  </View>
-
-                  {/* Card: Mẹo nhanh */}
-                  <View
-                    style={{
-                      backgroundColor: "#fff",
-                      borderRadius: 16,
-                      paddingHorizontal: 16,
-                      paddingVertical: 16,
-                      borderWidth: 1,
-                      borderColor: "#E5E7EB",
-                      shadowColor: "#000",
-                      shadowOpacity: 0.04,
-                      shadowRadius: 8,
-                      shadowOffset: { width: 0, height: 2 },
-                      elevation: 2,
-                      marginBottom: 16,
-                    }}
-                  >
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        marginBottom: 12,
-                      }}
-                    >
-                      <View
-                        style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: 12,
-                          backgroundColor: "#ECFDF5",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          marginRight: 10,
-                        }}
-                      >
-                        <Ionicons
-                          name="bulb-outline"
-                          size={18}
-                          color="#047857"
-                        />
-                      </View>
-                      <Text
-                        style={{
-                          fontWeight: "700",
-                          color: "#111827",
-                          fontSize: 15,
-                        }}
-                      >
-                        Mẹo sử dụng nhanh
-                      </Text>
-                    </View>
-
-                    {[
-                      "Thêm một lần dùng nhiều lần",
-                      "Đặt mặc định / chỉnh sửa từ danh sách",
-                      "Cần hỗ trợ? Liên hệ CSKH trong mục Trợ giúp",
-                    ].map((tip, idx) => (
-                      <View
-                        key={idx}
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "flex-start",
-                          marginTop: idx > 0 ? 8 : 0,
-                        }}
-                      >
-                        <Ionicons
-                          name="ellipse"
-                          size={5}
-                          color="#9CA3AF"
-                          style={{ marginTop: 6, marginRight: 10 }}
-                        />
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            color: "#6B7280",
-                            lineHeight: 18,
-                            flex: 1,
-                          }}
-                        >
-                          {tip}
-                        </Text>
-                      </View>
-                    ))}
                   </View>
 
                   {/* Actions */}

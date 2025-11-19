@@ -7,6 +7,7 @@ export type VehicleType =
   | "car_4_seat"
   | "car_7_seat"
   | "light_truck";
+export type VehicleStatus = 'pending' | 'approved' | 'rejected';
 
 export interface Vehicle {
   id: number;
@@ -15,6 +16,7 @@ export interface Vehicle {
   license_plate: string;
   is_primary: boolean;
   is_active: boolean;
+  status: VehicleStatus;
   created_at: string;
   updated_at: string;
   user?: {
@@ -87,6 +89,15 @@ export async function createVehicle(
 export interface UpdateVehiclePayload {
   vehicle_type?: VehicleType;
   license_plate?: string;
+}
+
+export async function resubmitVehicle(id: number): Promise<void> {
+  try {
+    await apiAuth.post(`/vehicles/${id}/resubmit`);
+  } catch (err: any) {
+    const message = parseApiError(err);
+    throw new Error(message);
+  }
 }
 
 export async function updateVehicle(

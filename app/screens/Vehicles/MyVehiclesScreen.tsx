@@ -15,6 +15,7 @@ import {
   setPrimaryVehicle,
   createVehicle,
   updateVehicle,
+  resubmitVehicle,
   type VehicleType,
 } from "@/lib/api/vehicles";
 import { getProfile } from "@/lib/api/auth";
@@ -63,6 +64,11 @@ export default function MyVehiclesScreen() {
   const [licensePlate, setLicensePlate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [userId, setUserId] = useState<number>(0);
+  // Lưu dữ liệu ban đầu để so sánh
+  const [originalVehicleData, setOriginalVehicleData] = useState<{
+    license_plate: string;
+    vehicle_type: VehicleType;
+  } | null>(null);
 
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -162,6 +168,11 @@ export default function MyVehiclesScreen() {
     setLicensePlate(vehicle.license_plate);
     const option = VEHICLE_TYPES.find((t) => t.value === vehicle.vehicle_type);
     setVehicleType(option ?? null);
+    // Lưu dữ liệu ban đầu để so sánh
+    setOriginalVehicleData({
+      license_plate: vehicle.license_plate,
+      vehicle_type: vehicle.vehicle_type,
+    });
     setFormModalVisible(true);
     Animated.spring(formSlideAnim, {
       toValue: 0,
@@ -182,6 +193,7 @@ export default function MyVehiclesScreen() {
       setEditingVehicleId(null);
       setLicensePlate("");
       setVehicleType(null);
+      setOriginalVehicleData(null);
     });
   };
 
@@ -200,18 +212,34 @@ export default function MyVehiclesScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       if (isEditMode && editingVehicleId) {
+        const newLicensePlate = licensePlate.trim();
+        const newVehicleType = vehicleType.value as VehicleType;
+        
+        // Kiểm tra xem dữ liệu có thay đổi không
+        const hasChanged =
+          !originalVehicleData ||
+          originalVehicleData.license_plate !== newLicensePlate ||
+          originalVehicleData.vehicle_type !== newVehicleType;
+
         await updateVehicle(editingVehicleId, {
-          license_plate: licensePlate,
-          vehicle_type: vehicleType.value as VehicleType,
+          license_plate: newLicensePlate,
+          vehicle_type: newVehicleType,
         });
-        showSuccess("Đã cập nhật phương tiện");
+
+        // Chỉ gọi resubmit nếu dữ liệu thay đổi
+        if (hasChanged) {
+          await resubmitVehicle(editingVehicleId);
+          showSuccess("Đã cập nhật - vui lòng chờ admin duyệt lại");
+        } else {
+          showSuccess("Đã cập nhật phương tiện");
+        }
       } else {
         await createVehicle({
           user_id: userId,
           license_plate: licensePlate,
           vehicle_type: vehicleType.value as VehicleType,
         });
-        showSuccess("Đã thêm phương tiện mới");
+        showSuccess("Đã gửi yêu cầu duyệt phương tiện mới");
       }
       closeFormModal();
       await loadUserAndVehicles();
@@ -274,6 +302,13 @@ export default function MyVehiclesScreen() {
   };
 
   const setDefault = async (vehicle: Vehicle) => {
+    if (vehicle.status !== "approved") {
+      Alert.alert(
+        "Chưa được duyệt",
+        "Phương tiện cần được admin duyệt trước khi đặt làm mặc định."
+      );
+      return;
+    }
     if (vehicle.is_primary) return;
     try {
       setSettingDefaultId(vehicle.id);

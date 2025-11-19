@@ -5,14 +5,12 @@ import {
   MaterialCommunityIcons,
   MaterialIcons,
 } from "@expo/vector-icons";
+import type {
+  Vehicle as VehicleModel,
+  VehicleStatus,
+} from "@/lib/api/vehicles";
 
-export type Vehicle = {
-  id: number;
-  vehicle_type: "motorbike" | "car_4_seat" | "car_7_seat" | "light_truck";
-  license_plate: string;
-  is_primary?: boolean;
-  is_active?: boolean;
-};
+export type Vehicle = VehicleModel;
 
 type VehicleCardProps = {
   vehicle: Vehicle;
@@ -70,6 +68,41 @@ function getVehicleDisplayName(type?: Vehicle["vehicle_type"]): string {
   return names[type] || type;
 }
 
+function getStatusBadge(
+  status?: VehicleStatus
+): {
+  label: string;
+  bgColor: string;
+  textColor: string;
+  icon: React.ReactNode;
+} | null {
+  if (!status) return null;
+  const config = {
+    approved: {
+      label: "Đã duyệt",
+      bgColor: "#ECFDF5",
+      textColor: "#047857",
+      icon: (
+        <Ionicons name="checkmark-circle" size={12} color="#047857" />
+      ),
+    },
+    pending: {
+      label: "Chờ duyệt",
+      bgColor: "#FEF3C7",
+      textColor: "#B45309",
+      icon: <Ionicons name="time-outline" size={12} color="#B45309" />,
+    },
+    rejected: {
+      label: "Bị từ chối",
+      bgColor: "#FEE2E2",
+      textColor: "#B91C1C",
+      icon: <Ionicons name="close-circle" size={12} color="#B91C1C" />,
+    },
+  } as const;
+
+  return config[status] ?? null;
+}
+
 export function CompactVehicleCard({
   vehicle,
   onEdit,
@@ -80,7 +113,10 @@ export function CompactVehicleCard({
 }: VehicleCardProps) {
   const { primary, light, icon } = getVehicleColorAndIcon(vehicle);
   const isPrimary = !!vehicle.is_primary;
+  const statusBadge = getStatusBadge(vehicle.status);
+  const awaitingApproval = vehicle.status && vehicle.status !== "approved";
   const inactive = vehicle.is_active === false;
+  const dimmed = inactive || awaitingApproval;
 
   return (
     <View
@@ -99,7 +135,7 @@ export function CompactVehicleCard({
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 3 },
         elevation: 2,
-        opacity: busy ? 0.6 : inactive ? 0.9 : 1,
+        opacity: busy ? 0.6 : dimmed ? 0.9 : 1,
       }}
     >
       <View
@@ -165,6 +201,32 @@ export function CompactVehicleCard({
               </Text>
             </View>
           )}
+
+          {statusBadge && (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderRadius: 999,
+                backgroundColor: statusBadge.bgColor,
+                marginTop: 4,
+              }}
+            >
+              {statusBadge.icon}
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "700",
+                  color: statusBadge.textColor,
+                  marginLeft: 4,
+                }}
+              >
+                {statusBadge.label}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View
@@ -205,6 +267,34 @@ export function CompactVehicleCard({
             </View>
           )}
         </View>
+
+        {vehicle.status !== "approved" && (
+          <Text
+            style={{
+              marginTop: 6,
+              fontSize: 12,
+              color: vehicle.status === "rejected" ? "#B91C1C" : "#92400E",
+              fontWeight: "600",
+            }}
+          >
+            {vehicle.status === "rejected"
+              ? "Phương tiện đã bị từ chối, vui lòng chỉnh sửa và gửi lại."
+              : "Phương tiện đang chờ admin duyệt trước khi có thể sử dụng."}
+          </Text>
+        )}
+
+        {inactive && vehicle.status === "approved" && (
+          <Text
+            style={{
+              marginTop: 6,
+              fontSize: 12,
+              color: "#DC2626",
+              fontWeight: "600",
+            }}
+          >
+            Phương tiện hiện đang bị khóa, vui lòng liên hệ hỗ trợ.
+          </Text>
+        )}
       </View>
 
       {/* Action button - 3 chấm dọc */}
