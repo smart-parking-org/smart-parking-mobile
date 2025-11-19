@@ -33,6 +33,15 @@ export function VehicleActionModal({
 
   const isPrimary = Boolean(vehicle.is_primary);
   const inactive = vehicle.is_active === false;
+  const awaitingApproval = vehicle.status !== "approved";
+  const usageLocked = inactive || awaitingApproval;
+  const statusMessage = awaitingApproval
+    ? vehicle.status === "rejected"
+      ? "Đã bị từ chối - hãy chỉnh sửa và gửi duyệt lại"
+      : "Đang chờ admin duyệt - chưa thể sử dụng"
+    : inactive
+    ? "Phương tiện đang bị khóa"
+    : null;
 
   const actions = [
     {
@@ -54,7 +63,7 @@ export function VehicleActionModal({
             color: "#F59E0B",
             bgColor: "#FEF3C7",
             onPress: onSetDefault,
-            disabled: inactive,
+            disabled: usageLocked,
           },
         ]),
     {
@@ -100,6 +109,20 @@ export function VehicleActionModal({
                 {vehicle.license_plate}
               </Text>
               <Text className="text-sm text-gray-500 mt-1">Chọn hành động</Text>
+              {statusMessage && (
+                <Text
+                  className="text-xs font-semibold mt-1"
+                  style={{
+                    color: awaitingApproval
+                      ? vehicle.status === "rejected"
+                        ? "#B91C1C"
+                        : "#B45309"
+                      : "#DC2626",
+                  }}
+                >
+                  {statusMessage}
+                </Text>
+              )}
             </View>
 
             {/* Actions */}

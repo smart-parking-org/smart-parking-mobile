@@ -34,6 +34,11 @@ export default function BookingFormScreen() {
   // combobox state
   const [vehicleModal, setVehicleModal] = useState(false);
 
+  // Filter vehicles: only approved and active
+  const availableVehicles = vehicles.filter(
+    (v) => v.status === "approved" && v.is_active === true
+  );
+
   useEffect(() => {
     loadUserAndVehicles();
   }, []);
@@ -46,8 +51,19 @@ export default function BookingFormScreen() {
       const response = await getVehicles(user.id);
       setVehicles(response.data);
 
-      const primary = response.data.find((v) => v.is_primary);
-      if (primary) setSelectedVehicle(primary);
+      // Only select from approved and active vehicles
+      const approvedActive = response.data.filter(
+        (v) => v.status === "approved" && v.is_active === true
+      );
+      const primary = approvedActive.find((v) => v.is_primary);
+      if (primary) {
+        setSelectedVehicle(primary);
+      } else if (approvedActive.length > 0) {
+        // If no primary, select first available
+        setSelectedVehicle(approvedActive[0]);
+      } else {
+        setSelectedVehicle(null);
+      }
     } catch (error: any) {
       Alert.alert("Lỗi", error.message || "Không thể tải dữ liệu");
     } finally {
@@ -58,6 +74,17 @@ export default function BookingFormScreen() {
   const handleSubmit = async () => {
     if (!selectedVehicle || !userId) {
       Alert.alert("Thiếu thông tin", "Vui lòng chọn phương tiện");
+      return;
+    }
+    // Validate vehicle is approved and active
+    if (
+      selectedVehicle.status !== "approved" ||
+      selectedVehicle.is_active !== true
+    ) {
+      Alert.alert(
+        "Phương tiện không khả dụng",
+        "Phương tiện này chưa được duyệt hoặc đã bị vô hiệu hóa. Vui lòng chọn phương tiện khác."
+      );
       return;
     }
     if (duration < 30 || duration > 1440) {
@@ -463,7 +490,7 @@ export default function BookingFormScreen() {
           </Text>
 
           <FlatList
-            data={vehicles}
+            data={availableVehicles}
             keyExtractor={(i) => String(i.id)}
             showsVerticalScrollIndicator={false}
             renderItem={({ item }) => {
@@ -538,11 +565,32 @@ export default function BookingFormScreen() {
                             {item.vehicle_type}
                           </Text>
                         </View>
+                        {item.is_primary && (
+                          <View
+                            style={{
+                              marginLeft: 6,
+                              paddingHorizontal: 6,
+                              paddingVertical: 2,
+                              borderRadius: 999,
+                              backgroundColor: "#F59E0B",
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 10,
+                                color: "#fff",
+                                fontWeight: "700",
+                              }}
+                            >
+                              Mặc định
+                            </Text>
+                          </View>
+                        )}
                       </View>
                       <Text
                         style={{ color: "#6B7280", fontSize: 12, marginTop: 2 }}
                       >
-                        Phương tiện đã lưu
+                        Phương tiện đã được duyệt
                       </Text>
                     </View>
 
@@ -556,15 +604,30 @@ export default function BookingFormScreen() {
               );
             }}
             ListEmptyComponent={
-              <Text
-                style={{
-                  textAlign: "center",
-                  color: "#6B7280",
-                  paddingVertical: 20,
-                }}
-              >
-                Chưa có phương tiện nào
-              </Text>
+              <View style={{ paddingVertical: 20, alignItems: "center" }}>
+                <Ionicons name="car-outline" size={48} color="#D1D5DB" />
+                <Text
+                  style={{
+                    textAlign: "center",
+                    color: "#6B7280",
+                    marginTop: 12,
+                    fontSize: 14,
+                    fontWeight: "600",
+                  }}
+                >
+                  Chưa có phương tiện nào được duyệt
+                </Text>
+                <Text
+                  style={{
+                    textAlign: "center",
+                    color: "#9CA3AF",
+                    marginTop: 4,
+                    fontSize: 12,
+                  }}
+                >
+                  Vui lòng thêm phương tiện và chờ admin duyệt
+                </Text>
+              </View>
             }
           />
         </View>

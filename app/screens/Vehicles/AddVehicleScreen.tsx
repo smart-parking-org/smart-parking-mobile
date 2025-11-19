@@ -1,225 +1,379 @@
-import React, { useState, useEffect } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-  Image,
-  ActivityIndicator,
-  Alert,
-} from "react-native";
-import Field from "@/app/components/ui/Field";
-import Select, { Option } from "@/app/components/ui/Select";
-import { router, useLocalSearchParams } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { getProfile } from "@/lib/api/auth";
-import {
-  getVehicle,
-  createVehicle,
-  updateVehicle,
-  type VehicleType,
-} from "@/lib/api/vehicles";
-import { Vehicle } from "@/lib/api/vehicles";
+// import React, { useState, useEffect } from "react";
+// import {
+//   KeyboardAvoidingView,
+//   Platform,
+//   ScrollView,
+//   Text,
+//   TouchableOpacity,
+//   View,
+//   ActivityIndicator,
+//   Alert,
+// } from "react-native";
+// import { SafeAreaView } from "react-native-safe-area-context";
+// import { Stack } from "expo-router";
+// import Field from "@/app/components/ui/Field";
+// import Select, { Option } from "@/app/components/ui/Select";
+// import { router, useLocalSearchParams } from "expo-router";
+// import { Ionicons } from "@expo/vector-icons";
+// import { getProfile } from "@/lib/api/auth";
+// import {
+//   getVehicle,
+//   createVehicle,
+//   updateVehicle,
+//   resubmitVehicle,
+//   type VehicleType,
+// } from "@/lib/api/vehicles";
+// import { AppColor } from "@/lib/utils/color";
 
-// Các loại xe theo backend
-const VEHICLE_TYPES: Option[] = [
-  { label: "Xe máy", value: "motorbike" },
-  { label: "Xe ô tô 4 chỗ", value: "car_4_seat" },
-  { label: "Xe ô tô 7 chỗ", value: "car_7_seat" },
-  { label: "Xe tải nhẹ", value: "light_truck" },
-];
+// // Các loại xe theo backend
+// const VEHICLE_TYPES: Option[] = [
+//   { label: "Xe máy", value: "motorbike" },
+//   { label: "Ô tô 4 chỗ", value: "car_4_seat" },
+//   { label: "Ô tô 7 chỗ", value: "car_7_seat" },
+//   { label: "Xe tải nhẹ", value: "light_truck" },
+// ];
 
-export default function AddVehicleScreen() {
-  const params = useLocalSearchParams();
-  const isEdit = !!params.id;
-  const vehicleId = params.id ? parseInt(params.id as string) : null;
+// export default function AddVehicleScreen() {
+//   const params = useLocalSearchParams();
+//   const isEdit = !!params.id;
+//   const vehicleId = params.id ? parseInt(params.id as string) : null;
 
-  const [userName, setUserName] = useState("");
-  const [userId, setUserId] = useState<number>(0);
-  const [loadingUser, setLoadingUser] = useState(true);
-  const [vehicleType, setVehicleType] = useState<Option | null>(null);
-  const [licensePlate, setLicensePlate] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [loadingVehicle, setLoadingVehicle] = useState(false);
+//   const [userId, setUserId] = useState<number>(0);
+//   const [loadingUser, setLoadingUser] = useState(true);
+//   const [vehicleType, setVehicleType] = useState<Option | null>(null);
+//   const [licensePlate, setLicensePlate] = useState("");
+//   const [submitting, setSubmitting] = useState(false);
+//   const [loadingVehicle, setLoadingVehicle] = useState(false);
 
-  // Load user
-  useEffect(() => {
-    (async () => {
-      try {
-        const user = await getProfile();
-        setUserName(user?.name ?? "");
-        setUserId(user?.id ?? 0);
-      } catch (e: any) {
-        console.log("Lỗi getProfile:", e?.response?.data || e?.message);
-      } finally {
-        setLoadingUser(false);
-      }
-    })();
-  }, []);
+//   // Load user
+//   useEffect(() => {
+//     (async () => {
+//       try {
+//         const user = await getProfile();
+//         setUserId(user?.id ?? 0);
+//       } catch (e: any) {
+//         console.log("Lỗi getProfile:", e?.response?.data || e?.message);
+//       } finally {
+//         setLoadingUser(false);
+//       }
+//     })();
+//   }, []);
 
-  // Load vehicle nếu đang sửa
-  useEffect(() => {
-    if (isEdit && vehicleId) {
-      loadVehicle();
-    }
-  }, [isEdit, vehicleId]);
+//   // Load vehicle nếu đang sửa
+//   useEffect(() => {
+//     if (isEdit && vehicleId) {
+//       loadVehicle();
+//     }
+//   }, [isEdit, vehicleId]);
 
-  const loadVehicle = async () => {
-    if (!vehicleId) return;
-    try {
-      setLoadingVehicle(true);
-      const vehicle = await getVehicle(vehicleId);
-      setLicensePlate(vehicle.license_plate);
+//   const loadVehicle = async () => {
+//     if (!vehicleId) return;
+//     try {
+//       setLoadingVehicle(true);
+//       const vehicle = await getVehicle(vehicleId);
+//       setLicensePlate(vehicle.license_plate);
 
-      const typeOption = VEHICLE_TYPES.find(
-        (t) => t.value === vehicle.vehicle_type
-      );
-      if (typeOption) {
-        setVehicleType(typeOption);
-      }
-    } catch (error: any) {
-      Alert.alert(
-        "Lỗi",
-        error.message || "Không thể tải thông tin phương tiện"
-      );
-    } finally {
-      setLoadingVehicle(false);
-    }
-  };
+//       const typeOption = VEHICLE_TYPES.find(
+//         (t) => t.value === vehicle.vehicle_type
+//       );
+//       if (typeOption) {
+//         setVehicleType(typeOption);
+//       }
+//     } catch (error: any) {
+//       Alert.alert(
+//         "Lỗi",
+//         error.message || "Không thể tải thông tin phương tiện"
+//       );
+//     } finally {
+//       setLoadingVehicle(false);
+//     }
+//   };
 
-  const errors = {
-    licensePlate: !licensePlate.trim() ? "Biển số không được để trống" : null,
-    vehicleType: !vehicleType ? "Vui lòng chọn loại xe" : null,
-  };
+//   const errors = {
+//     licensePlate: !licensePlate.trim() ? "Biển số không được để trống" : null,
+//     vehicleType: !vehicleType ? "Vui lòng chọn loại xe" : null,
+//   };
 
-  const hasErrors = Object.values(errors).some(Boolean);
+//   const hasErrors = Object.values(errors).some(Boolean);
 
-  const onSubmit = async () => {
-    if (hasErrors || loadingUser || submitting) return;
+//   const onSubmit = async () => {
+//     if (hasErrors || loadingUser || submitting) return;
 
-    try {
-      setSubmitting(true);
+//     try {
+//       setSubmitting(true);
 
-      if (isEdit && vehicleId) {
-        await updateVehicle(vehicleId, {
-          vehicle_type: vehicleType!.value as VehicleType,
-          license_plate: licensePlate,
-        });
-        Alert.alert("Thành công", "Cập nhật phương tiện thành công", [
-          { text: "OK", onPress: () => router.back() },
-        ]);
-      } else {
-        await createVehicle({
-          user_id: userId,
-          vehicle_type: vehicleType!.value as VehicleType,
-          license_plate: licensePlate,
-        });
-        Alert.alert("Thành công", "Thêm phương tiện thành công", [
-          { text: "OK", onPress: () => router.back() },
-        ]);
-      }
-    } catch (error: any) {
-      Alert.alert("Lỗi", error.message || "Không thể lưu phương tiện");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+//       if (isEdit && vehicleId) {
+//         await updateVehicle(vehicleId, {
+//           vehicle_type: vehicleType!.value as VehicleType,
+//           license_plate: licensePlate,
+//         });
+//         // Gọi resubmit để yêu cầu admin duyệt lại
+//         await resubmitVehicle(vehicleId);
+//         Alert.alert(
+//           "Thành công",
+//           "Đã cập nhật phương tiện. Phương tiện đang chờ admin duyệt lại.",
+//           [{ text: "OK", onPress: () => router.back() }]
+//         );
+//       } else {
+//         await createVehicle({
+//           user_id: userId,
+//           vehicle_type: vehicleType!.value as VehicleType,
+//           license_plate: licensePlate,
+//         });
+//         Alert.alert(
+//           "Thành công",
+//           "Đã thêm phương tiện. Phương tiện đang chờ admin duyệt.",
+//           [{ text: "OK", onPress: () => router.back() }]
+//         );
+//       }
+//     } catch (error: any) {
+//       Alert.alert("Lỗi", error.message || "Không thể lưu phương tiện");
+//     } finally {
+//       setSubmitting(false);
+//     }
+//   };
 
-  if (loadingVehicle) {
-    return (
-      <View className="flex-1 bg-white items-center justify-center">
-        <ActivityIndicator size="large" color="#3B82F6" />
-      </View>
-    );
-  }
+//   if (loadingVehicle) {
+//     return (
+//       <>
+//         <Stack.Screen
+//           options={{
+//             headerShown: true,
+//             title: isEdit ? "SỬA PHƯƠNG TIỆN" : "THÊM PHƯƠNG TIỆN",
+//             headerTitleAlign: "center",
+//             headerStyle: { backgroundColor: AppColor.PRIMARY },
+//             headerShadowVisible: false,
+//             headerTitleStyle: {
+//               fontWeight: "800",
+//               fontSize: 16,
+//               color: "#fff",
+//             },
+//             headerTintColor: "#fff",
+//           }}
+//         />
+//         <SafeAreaView
+//           style={{ flex: 1, backgroundColor: "#F9FAFB" }}
+//           edges={["top", "bottom"]}
+//         >
+//           <View
+//             style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+//           >
+//             <ActivityIndicator size="large" color={AppColor.PRIMARY} />
+//             <Text style={{ marginTop: 12, color: "#6B7280" }}>
+//               Đang tải...
+//             </Text>
+//           </View>
+//         </SafeAreaView>
+//       </>
+//     );
+//   }
 
-  return (
-    <KeyboardAvoidingView
-      behavior={Platform.select({ ios: "padding" })}
-      className="flex-1 bg-white"
-    >
-      <ScrollView contentContainerClassName="px-6 py-10">
-        <View className="flex-row items-center justify-between mt-5">
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="h-10 w-10 rounded-full items-center justify-center"
-          >
-            <Ionicons name="chevron-back" size={25} color="#000" />
-          </TouchableOpacity>
-          <Text className="text-black font-semibold text-xl">
-            {isEdit ? "Sửa phương tiện" : "Thêm phương tiện"}
-          </Text>
-          <View className="h-10 w-10" />
-        </View>
+//   return (
+//     <>
+//       <Stack.Screen
+//         options={{
+//           headerShown: true,
+//           title: isEdit ? "SỬA PHƯƠNG TIỆN" : "THÊM PHƯƠNG TIỆN",
+//           headerTitleAlign: "center",
+//           headerStyle: { backgroundColor: AppColor.PRIMARY },
+//           headerShadowVisible: false,
+//           headerTitleStyle: {
+//             fontWeight: "800",
+//             fontSize: 16,
+//             color: "#fff",
+//           },
+//           headerTintColor: "#fff",
+//         }}
+//       />
+//       <SafeAreaView
+//         style={{ flex: 1, backgroundColor: "#F9FAFB" }}
+//         edges={["bottom"]}
+//       >
+//         <KeyboardAvoidingView
+//           behavior={Platform.OS === "ios" ? "padding" : undefined}
+//           style={{ flex: 1 }}
+//         >
+//           <ScrollView
+//             style={{ flex: 1 }}
+//             contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
+//             keyboardShouldPersistTaps="handled"
+//             showsVerticalScrollIndicator={false}
+//           >
+//             {/* Card: Thông tin phương tiện */}
+//             <View
+//               style={{
+//                 backgroundColor: "#fff",
+//                 borderRadius: 16,
+//                 paddingHorizontal: 16,
+//                 paddingVertical: 16,
+//                 borderWidth: 1,
+//                 borderColor: "#E5E7EB",
+//                 shadowColor: "#000",
+//                 shadowOpacity: 0.04,
+//                 shadowRadius: 8,
+//                 shadowOffset: { width: 0, height: 2 },
+//                 elevation: 2,
+//                 marginBottom: 12,
+//               }}
+//             >
+//               <View
+//                 style={{
+//                   flexDirection: "row",
+//                   alignItems: "center",
+//                   marginBottom: 14,
+//                 }}
+//               >
+//                 <View
+//                   style={{
+//                     width: 36,
+//                     height: 36,
+//                     borderRadius: 12,
+//                     backgroundColor: `${AppColor.PRIMARY}15`,
+//                     alignItems: "center",
+//                     justifyContent: "center",
+//                     marginRight: 10,
+//                   }}
+//                 >
+//                   <Ionicons
+//                     name={isEdit ? "create-outline" : "car-outline"}
+//                     size={18}
+//                     color={AppColor.PRIMARY}
+//                   />
+//                 </View>
+//                 <Text
+//                   style={{
+//                     fontWeight: "700",
+//                     color: "#111827",
+//                     fontSize: 15,
+//                   }}
+//                 >
+//                   Thông tin phương tiện
+//                 </Text>
+//               </View>
 
-        <View className="items-center mt-20 mb-6">
-          <Image
-            source={require("../../../assets/logo.png")}
-            className="w-28 h-36"
-            resizeMode="contain"
-          />
-        </View>
+//               <View style={{ marginBottom: 12 }}>
+//                 <Select
+//                   label="Loại phương tiện"
+//                   value={vehicleType}
+//                   options={VEHICLE_TYPES}
+//                   onSelect={setVehicleType}
+//                   error={errors.vehicleType}
+//                 />
+//               </View>
 
-        <View className="mb-3">
-          <View className="flex-row justify-between">
-            <Text className="text-gray-600 mb-1">Họ tên</Text>
-            {!loadingUser && (
-              <Text className="text-xs text-emerald-600">
-                Tự động từ tài khoản
-              </Text>
-            )}
-          </View>
+//               <Field
+//                 label="Biển số xe"
+//                 value={licensePlate}
+//                 onChangeText={setLicensePlate}
+//                 placeholder="VD: 51A-12345"
+//                 autoCapitalize="characters"
+//                 error={errors.licensePlate}
+//               />
 
-          {loadingUser ? (
-            <View className="h-12 rounded-2xl border border-gray-300 bg-gray-100 items-center justify-center">
-              <ActivityIndicator />
-            </View>
-          ) : (
-            <Field
-              label=""
-              value={userName}
-              editable={false}
-              selectTextOnFocus={false}
-              placeholder="Đang tải tên..."
-              className="h-12 rounded-2xl px-4 border border-gray-300 bg-gray-100 text-gray-700"
-            />
-          )}
-        </View>
+//               <View
+//                 style={{
+//                   marginTop: 10,
+//                   paddingHorizontal: 12,
+//                   paddingVertical: 10,
+//                   borderRadius: 12,
+//                   backgroundColor: "#F3F4F6",
+//                 }}
+//               >
+//                 <Text
+//                   style={{
+//                     fontSize: 11,
+//                     color: "#6B7280",
+//                     lineHeight: 16,
+//                   }}
+//                 >
+//                   • Viết HOA và đúng định dạng để kiểm tra nhanh{"\n"}•
+//                   {isEdit
+//                     ? " Khi chỉnh sửa sẽ yêu cầu admin duyệt lại"
+//                     : " Phương tiện cần được admin duyệt trước khi sử dụng"}
+//                 </Text>
+//               </View>
+//             </View>
 
-        <Select
-          label="Loại phương tiện"
-          value={vehicleType}
-          options={VEHICLE_TYPES}
-          onSelect={setVehicleType}
-          error={errors.vehicleType}
-          disabled={isEdit}
-        />
+//             {/* Actions */}
+//             <View style={{ flexDirection: "row", gap: 10 }}>
+//               <TouchableOpacity
+//                 onPress={() => router.back()}
+//                 activeOpacity={0.8}
+//                 style={{
+//                   flex: 1,
+//                   height: 52,
+//                   borderRadius: 14,
+//                   borderWidth: 2,
+//                   borderColor: "#E5E7EB",
+//                   backgroundColor: "#fff",
+//                   alignItems: "center",
+//                   justifyContent: "center",
+//                 }}
+//               >
+//                 <Text
+//                   style={{
+//                     color: "#374151",
+//                     fontWeight: "700",
+//                     fontSize: 15,
+//                   }}
+//                 >
+//                   Hủy
+//                 </Text>
+//               </TouchableOpacity>
 
-        <Field
-          label="Biển số"
-          value={licensePlate}
-          onChangeText={setLicensePlate}
-          placeholder="51A-12345"
-          autoCapitalize="characters"
-          error={errors.licensePlate}
-        />
-
-        <TouchableOpacity
-          onPress={onSubmit}
-          disabled={hasErrors || submitting || loadingUser}
-          className={`h-12 rounded-2xl items-center justify-center mt-2 ${
-            hasErrors || submitting || loadingUser
-              ? "bg-blue-300"
-              : "bg-blue-600"
-          }`}
-        >
-          <Text className="text-white font-semibold">
-            {submitting ? "Đang xử lý..." : isEdit ? "Cập nhật" : "Thêm mới"}
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
-}
+//               <TouchableOpacity
+//                 onPress={onSubmit}
+//                 disabled={hasErrors || submitting || loadingUser}
+//                 activeOpacity={0.85}
+//                 style={{
+//                   flex: 1,
+//                   height: 52,
+//                   borderRadius: 14,
+//                   alignItems: "center",
+//                   justifyContent: "center",
+//                   backgroundColor:
+//                     hasErrors || submitting || loadingUser
+//                       ? "#C7D2FE"
+//                       : AppColor.PRIMARY,
+//                   shadowColor:
+//                     hasErrors || submitting || loadingUser
+//                       ? "transparent"
+//                       : AppColor.PRIMARY,
+//                   shadowOpacity:
+//                     hasErrors || submitting || loadingUser ? 0 : 0.3,
+//                   shadowRadius: 10,
+//                   shadowOffset: { width: 0, height: 4 },
+//                   elevation: hasErrors || submitting || loadingUser ? 0 : 5,
+//                 }}
+//               >
+//                 {submitting ? (
+//                   <ActivityIndicator size="small" color="#fff" />
+//                 ) : (
+//                   <View
+//                     style={{ flexDirection: "row", alignItems: "center" }}
+//                   >
+//                     <Ionicons
+//                       name={isEdit ? "checkmark-circle" : "add-circle"}
+//                       size={20}
+//                       color="#fff"
+//                     />
+//                     <Text
+//                       style={{
+//                         color: "#fff",
+//                         fontWeight: "800",
+//                         marginLeft: 8,
+//                         fontSize: 15,
+//                       }}
+//                     >
+//                       {isEdit ? "Lưu thay đổi" : "Thêm phương tiện"}
+//                     </Text>
+//                   </View>
+//                 )}
+//               </TouchableOpacity>
+//             </View>
+//           </ScrollView>
+//         </KeyboardAvoidingView>
+//       </SafeAreaView>
+//     </>
+//   );
+// }
