@@ -45,6 +45,17 @@ type ReservationHistory = {
     license_plate: string;
     vehicle_type: VehicleType;
   };
+  gate?: {
+    id: number;
+    parking_lot_id: number;
+    gate_code: string;
+    gate_type: "entry" | "exit" | "both";
+    position_x: string;
+    position_y: string;
+    is_active: boolean;
+    created_at?: string;
+    updated_at?: string;
+  };
   payment?: {
     id: number;
     amount: number;
@@ -240,6 +251,20 @@ function getVehicleTypeLabel(type?: string) {
   }
 }
 
+function getGateTypeLabel(type?: string) {
+  if (!type) return "N/A";
+  switch (type) {
+    case "entry":
+      return "Vào";
+    case "exit":
+      return "Ra";
+    case "both":
+      return "Vào/Ra";
+    default:
+      return type;
+  }
+}
+
 function formatDateTime(dateString: string): string {
   const date = new Date(dateString);
   return date.toLocaleString("vi-VN", {
@@ -402,12 +427,20 @@ function BookingHistoryItem({ item }: { item: ReservationHistory }) {
             </Text>
           </View>
         )}
-        <View className="flex-row items-center">
+        <View className="flex-row items-center mb-2">
           <Ionicons name="location" size={16} color="#6b7280" />
           <Text className="text-gray-600 text-sm ml-2">
             {item.slot?.slot_code || "N/A"}
           </Text>
         </View>
+        {item.gate && (
+          <View className="flex-row items-center">
+            <Ionicons name="git-branch" size={16} color="#6b7280" />
+            <Text className="text-gray-600 text-sm ml-2">
+              Cổng: {item.gate.gate_code} ({getGateTypeLabel(item.gate.gate_type)})
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Vehicle Info */}

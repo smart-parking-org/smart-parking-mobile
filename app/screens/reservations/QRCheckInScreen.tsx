@@ -32,6 +32,21 @@ type ReservationData = {
   slot?: {
     slot_code: string;
     vehicle_type: string;
+    parking_lot?: {
+      id: number;
+      name: string;
+    };
+  };
+  gate?: {
+    id: number;
+    parking_lot_id: number;
+    gate_code: string;
+    gate_type: "entry" | "exit" | "both";
+    position_x: string;
+    position_y: string;
+    is_active: boolean;
+    created_at?: string;
+    updated_at?: string;
   };
   user_snapshot?: {
     name: string;
@@ -183,6 +198,32 @@ export default function QRCheckinScreen() {
   const getVehicleIcon = (type?: string) => {
     if (!type) return "car";
     return type === "motorbike" ? "bicycle" : "car";
+  };
+
+  const getGateTypeLabel = (type?: string) => {
+    if (!type) return "N/A";
+    switch (type) {
+      case "entry":
+        return "Vào";
+      case "exit":
+        return "Ra";
+      case "both":
+        return "Vào/Ra";
+      default:
+        return type;
+    }
+  };
+
+  const calculateDuration = (startTime: string, endTime: string): string => {
+    const start = new Date(startTime).getTime();
+    const end = new Date(endTime).getTime();
+    const diffMs = end - start;
+    const diffMinutes = Math.floor(diffMs / 60000);
+    const hours = Math.floor(diffMinutes / 60);
+    const minutes = diffMinutes % 60;
+    if (hours > 0 && minutes > 0) return `${hours} giờ ${minutes} phút`;
+    if (hours > 0) return `${hours} giờ`;
+    return `${minutes} phút`;
   };
 
   const handleExtend = async () => {
@@ -427,6 +468,34 @@ export default function QRCheckinScreen() {
                       </Text>
                     </View>
 
+                    {reservation.slot?.parking_lot && (
+                      <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
+                        <View className="flex-row items-center">
+                          <Ionicons name="business" size={20} color="#6b7280" />
+                          <Text className="text-gray-600 font-medium ml-3">
+                            Bãi đỗ
+                          </Text>
+                        </View>
+                        <Text className="text-gray-800 font-semibold text-base">
+                          {reservation.slot.parking_lot.name}
+                        </Text>
+                      </View>
+                    )}
+
+                    {reservation.gate && (
+                      <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
+                        <View className="flex-row items-center">
+                          <Ionicons name="git-branch" size={20} color="#6b7280" />
+                          <Text className="text-gray-600 font-medium ml-3">
+                            Cổng
+                          </Text>
+                        </View>
+                        <Text className="text-gray-800 font-semibold text-base">
+                          {reservation.gate.gate_code} ({getGateTypeLabel(reservation.gate.gate_type)})
+                        </Text>
+                      </View>
+                    )}
+
                     {reservation.slot && (
                       <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
                         <View className="flex-row items-center">
@@ -490,6 +559,36 @@ export default function QRCheckinScreen() {
                         )}
                       </Text>
                     </View>
+
+                    {reservation.end_time && (
+                      <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
+                        <View className="flex-row items-center">
+                          <Ionicons name="time-outline" size={20} color="#6b7280" />
+                          <Text className="text-gray-600 font-medium ml-3">
+                            Kết thúc
+                          </Text>
+                        </View>
+                        <Text className="text-gray-800 font-semibold text-base">
+                          {new Date(reservation.end_time).toLocaleString(
+                            "vi-VN"
+                          )}
+                        </Text>
+                      </View>
+                    )}
+
+                    {reservation.start_time && reservation.end_time && (
+                      <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
+                        <View className="flex-row items-center">
+                          <Ionicons name="hourglass" size={20} color="#6b7280" />
+                          <Text className="text-gray-600 font-medium ml-3">
+                            Thời lượng đỗ
+                          </Text>
+                        </View>
+                        <Text className="text-gray-800 font-semibold text-base">
+                          {calculateDuration(reservation.start_time, reservation.end_time)}
+                        </Text>
+                      </View>
+                    )}
 
                     <View className="flex-row items-center justify-between py-3">
                       <View className="flex-row items-center">

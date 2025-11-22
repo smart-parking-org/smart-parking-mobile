@@ -7,6 +7,7 @@ export type CreateReservationPayload = {
   vehicle_type: "motorbike" | "car_4_seat" | "car_7_seat" | "light_truck";
   desired_start_time: string;
   duration_minutes: number;
+  gate_id?: number;
 };
 
 export type ReservationResponse = {
@@ -42,6 +43,21 @@ export type Reservation = {
     id: number;
     slot_code: string;
     vehicle_type: string;
+    parking_lot?: {
+      id: number;
+      name: string;
+    };
+  };
+  gate?: {
+    id: number;
+    parking_lot_id: number;
+    gate_code: string;
+    gate_type: "entry" | "exit" | "both";
+    position_x: string;
+    position_y: string;
+    is_active: boolean;
+    created_at?: string;
+    updated_at?: string;
   };
   user_snapshot?: {
     id: number;

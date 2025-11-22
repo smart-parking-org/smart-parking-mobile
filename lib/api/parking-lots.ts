@@ -98,3 +98,32 @@ export async function getParkingLotPricingRules(
     throw error;
   }
 }
+
+export type Gate = {
+  id: number;
+  parking_lot_id: number;
+  gate_code: string;
+  gate_type: "entry" | "exit" | "both";
+  position_x: string;
+  position_y: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+/**
+ * Lấy danh sách cổng của một bãi đỗ xe
+ */
+export async function getParkingLotGates(
+  parkingLotId: number
+): Promise<Gate[]> {
+  try {
+    const { data } = await apiPayment.get<{
+      success: boolean;
+      data: Gate[];
+    }>(`/parking-lots/${parkingLotId}/gates`);
+    return data.data;
+  } catch (error: any) {
+    throw error;
+  }
+}
