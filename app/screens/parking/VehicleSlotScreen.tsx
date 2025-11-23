@@ -14,7 +14,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { getVehicles, Vehicle } from "@/lib/api/vehicles";
 import { getProfile } from "@/lib/api/auth";
-import { getParkingLotGates, Gate } from "@/lib/api/parking-lots";
 import { AppColor } from "@/lib/utils/color";
 
 export default function BookingFormScreen() {
@@ -25,8 +24,6 @@ export default function BookingFormScreen() {
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
-  const [gates, setGates] = useState<Gate[]>([]);
-  const [selectedGate, setSelectedGate] = useState<Gate | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
   const [startDateTime] = useState(new Date());
   const [duration, setDuration] = useState(120);
@@ -36,15 +33,11 @@ export default function BookingFormScreen() {
 
   // combobox state
   const [vehicleModal, setVehicleModal] = useState(false);
-  const [gateModal, setGateModal] = useState(false);
 
   // Filter vehicles: only approved and active
   const availableVehicles = vehicles.filter(
     (v) => v.status === "approved" && v.is_active === true
   );
-
-  // Gates đã được lọc chỉ lưu các cổng đang hoạt động, nên availableGates = gates
-  const availableGates = gates;
 
   useEffect(() => {
     loadUserAndVehicles();
@@ -71,18 +64,6 @@ export default function BookingFormScreen() {
       } else {
         setSelectedVehicle(null);
       }
-
-      // Load gates - chỉ lưu các cổng đang hoạt động
-      if (lotId) {
-        const gatesData = await getParkingLotGates(parseInt(lotId));
-        // Chỉ lưu các cổng có is_active === true
-        const activeGates = gatesData.filter((g) => g.is_active === true);
-        setGates(activeGates);
-        // Select first active gate if available
-        if (activeGates.length > 0) {
-          setSelectedGate(activeGates[0]);
-        }
-      }
     } catch (error: any) {
       Alert.alert("Lỗi", error.message || "Không thể tải dữ liệu");
     } finally {
@@ -93,10 +74,6 @@ export default function BookingFormScreen() {
   const handleSubmit = async () => {
     if (!selectedVehicle || !userId) {
       Alert.alert("Thiếu thông tin", "Vui lòng chọn phương tiện");
-      return;
-    }
-    if (!selectedGate) {
-      Alert.alert("Thiếu thông tin", "Vui lòng chọn cổng");
       return;
     }
     // Validate vehicle is approved and active
@@ -147,7 +124,6 @@ export default function BookingFormScreen() {
         vehicle_type: selectedVehicle.vehicle_type,
         desired_start_time: desiredStartTime,
         duration_minutes: duration,
-        gate_id: selectedGate.id,
       };
 
       const response = await createReservation(payload);
@@ -325,50 +301,6 @@ export default function BookingFormScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* CỔNG – Combobox gọn */}
-          <View
-            className="bg-white rounded-2xl p-4 mb-4"
-            style={{
-              shadowColor: "#000",
-              shadowOpacity: 0.08,
-              shadowRadius: 8,
-              shadowOffset: { width: 0, height: 2 },
-              elevation: 2,
-            }}
-          >
-            <Text className="text-gray-500 text-xs font-medium mb-3 tracking-wider">
-              CỔNG
-            </Text>
-
-            {/* Nút mở combobox */}
-            <TouchableOpacity
-              onPress={() => setGateModal(true)}
-              activeOpacity={0.85}
-              className="border border-gray-200 bg-white rounded-2xl px-4 py-3 flex-row items-center justify-between"
-            >
-              <View className="flex-row items-center">
-                <View className="h-9 w-9 rounded-lg bg-gray-100 items-center justify-center mr-3">
-                  <Ionicons name="git-branch" size={18} color="#6b7280" />
-                </View>
-                <View>
-                  <Text className="font-semibold text-base text-gray-900">
-                    {selectedGate?.gate_code ?? "Chọn cổng"}
-                  </Text>
-                  {!!selectedGate && (
-                    <Text className="text-gray-500 text-xs">
-                      {selectedGate.gate_type === "entry"
-                        ? "Vào"
-                        : selectedGate.gate_type === "exit"
-                        ? "Ra"
-                        : "Vào/Ra"}
-                    </Text>
-                  )}
-                </View>
-              </View>
-              <Ionicons name="chevron-down" size={18} color="#6b7280" />
-            </TouchableOpacity>
-          </View>
-
           {/* BẮT ĐẦU */}
           <View
             className="bg-white rounded-2xl p-4 mb-4"
@@ -493,9 +425,9 @@ export default function BookingFormScreen() {
           {/* CTA */}
           <TouchableOpacity
             onPress={handleSubmit}
-            disabled={submitting || !selectedVehicle || !selectedGate}
+            disabled={submitting || !selectedVehicle}
             className={`h-14 rounded-2xl items-center justify-center ${
-              submitting || !selectedVehicle || !selectedGate
+              submitting || !selectedVehicle
                 ? "bg-gray-300"
                 : "bg-blue-600"
             }`}
@@ -703,171 +635,6 @@ export default function BookingFormScreen() {
         </View>
       </Modal>
 
-      {/* ===== Combobox Modal cho CỔNG ===== */}
-      <Modal
-        visible={gateModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setGateModal(false)}
-      >
-        <Pressable
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.25)" }}
-          onPress={() => setGateModal(false)}
-        />
-        <View
-          style={{
-            backgroundColor: "#fff",
-            padding: 16,
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20,
-            maxHeight: "65%",
-          }}
-        >
-          <View style={{ alignItems: "center", marginBottom: 8 }}>
-            <View
-              style={{
-                width: 38,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: "#E5E7EB",
-              }}
-            />
-          </View>
-          <Text
-            style={{
-              fontWeight: "800",
-              fontSize: 16,
-              textAlign: "center",
-              marginBottom: 8,
-            }}
-          >
-            Chọn cổng
-          </Text>
-
-          <FlatList
-            data={availableGates}
-            keyExtractor={(i) => String(i.id)}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => {
-              const active = selectedGate?.id === item.id;
-              return (
-                <TouchableOpacity
-                  onPress={() => {
-                    setSelectedGate(item);
-                    setGateModal(false);
-                  }}
-                  activeOpacity={0.9}
-                  style={{
-                    paddingVertical: 12,
-                    paddingHorizontal: 14,
-                    borderRadius: 16,
-                    borderWidth: 1.5,
-                    borderColor: active ? "#2563EB" : "#E5E7EB",
-                    backgroundColor: active ? "#EFF6FF" : "#FFF",
-                    marginBottom: 10,
-                  }}
-                >
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <View
-                      style={{
-                        height: 44,
-                        width: 44,
-                        borderRadius: 12,
-                        backgroundColor: active ? "#fff" : "#F3F4F6",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginRight: 12,
-                      }}
-                    >
-                      <Ionicons
-                        name="git-branch"
-                        size={20}
-                        color={active ? "#2563EB" : "#6B7280"}
-                      />
-                    </View>
-
-                    <View style={{ flex: 1 }}>
-                      <View
-                        style={{ flexDirection: "row", alignItems: "center" }}
-                      >
-                        <Text
-                          style={{
-                            fontWeight: "700",
-                            fontSize: 16,
-                            marginRight: 8,
-                          }}
-                        >
-                          {item.gate_code}
-                        </Text>
-                        <View
-                          style={{
-                            paddingHorizontal: 8,
-                            paddingVertical: 2,
-                            borderRadius: 999,
-                            borderWidth: 1,
-                            borderColor: active ? "#3B82F6" : "#D1D5DB",
-                            backgroundColor: active ? "#fff" : "#F3F4F6",
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 11,
-                              color: active ? "#2563EB" : "#6B7280",
-                            }}
-                          >
-                            {item.gate_type === "entry"
-                              ? "Vào"
-                              : item.gate_type === "exit"
-                              ? "Ra"
-                              : "Vào/Ra"}
-                          </Text>
-                        </View>
-                      </View>
-                      <Text
-                        style={{ color: "#6B7280", fontSize: 12, marginTop: 2 }}
-                      >
-                        Cổng đang hoạt động
-                      </Text>
-                    </View>
-
-                    <Ionicons
-                      name={active ? "checkmark-circle" : "ellipse-outline"}
-                      size={22}
-                      color={active ? "#2563EB" : "#D1D5DB"}
-                    />
-                  </View>
-                </TouchableOpacity>
-              );
-            }}
-            ListEmptyComponent={
-              <View style={{ paddingVertical: 20, alignItems: "center" }}>
-                <Ionicons name="git-branch-outline" size={48} color="#D1D5DB" />
-                <Text
-                  style={{
-                    textAlign: "center",
-                    color: "#6B7280",
-                    marginTop: 12,
-                    fontSize: 14,
-                    fontWeight: "600",
-                  }}
-                >
-                  Chưa có cổng nào khả dụng
-                </Text>
-                <Text
-                  style={{
-                    textAlign: "center",
-                    color: "#9CA3AF",
-                    marginTop: 4,
-                    fontSize: 12,
-                  }}
-                >
-                  Vui lòng liên hệ quản trị viên
-                </Text>
-              </View>
-            }
-          />
-        </View>
-      </Modal>
     </>
   );
 }

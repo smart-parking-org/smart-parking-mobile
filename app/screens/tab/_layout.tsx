@@ -30,7 +30,7 @@ export default function TabLayout() {
         user_id: userId,
         per_page: 1, // Chỉ cần lấy 1 để lấy unread_count
       });
-      
+
       setUnreadCount(response.unread_count || 0);
     } catch (error) {
       console.error("Error fetching unread count:", error);
@@ -62,8 +62,8 @@ export default function TabLayout() {
     })();
   }, []);
 
-   // Fetch unread count khi có userId
-   useEffect(() => {
+  // Fetch unread count khi có userId
+  useEffect(() => {
     if (userId) {
       fetchUnreadCount();
     }
@@ -106,7 +106,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
-      initialRouteName="HomeScreen" // khớp tên file HomeScreen.tsx
+      initialRouteName="MapParking" // khớp tên file HomeScreen.tsx
       screenOptions={{
         headerShown: true,
         tabBarShowLabel: true,
@@ -154,7 +154,9 @@ export default function TabLayout() {
                     alignItems: "center",
                   }}
                 >
-                  <Text style={{ color: "#fff", fontSize: 10 }}>{unreadCount > 99 ? "99+" : unreadCount}</Text>
+                  <Text style={{ color: "#fff", fontSize: 10 }}>
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </Text>
                 </View>
               )}
             </View>
@@ -203,7 +205,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="MapParking"
         options={{
-          title: "BẢN ĐỒ BÃI",
+          title: "BẢN ĐỒ CÁC BÃI ĐỖ XE",
           tabBarButton: (props) => {
             const segments = useSegments();
             const focused = segments[segments.length - 1] === "MapParking";
@@ -254,7 +256,7 @@ export default function TabLayout() {
                     backgroundColor: ACTIVE,
                   }}
                 >
-                  Bản đồ
+                  Đặt chỗ
                 </Text>
               </TouchableOpacity>
             );
@@ -265,7 +267,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="QRScreen"
         options={{
-          title: "Mã QR",
+          title: "MÃ QR",
           tabBarLabel: "QR",
           tabBarIcon: ({ focused, color }) => (
             <Ionicons

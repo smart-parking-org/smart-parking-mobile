@@ -20,7 +20,7 @@ import {
 } from "@/lib/api/parking-lots";
 import DetailMarkerPanel from "@/app/components/map/DetailMarkerPanel";
 import { mapLightStyle } from "@/lib/mapLightStyle";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import { AppColor } from "@/lib/utils/color";
 
 const normalizeText = (s: string) =>
@@ -39,6 +39,7 @@ export default function MapParking() {
 
   const [parkingLots, setParkingLots] = useState<ParkingLot[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingStatistics, setLoadingStatistics] = useState(false);
 
   // SEARCH
   const [query, setQuery] = useState("");
@@ -68,30 +69,26 @@ export default function MapParking() {
     loadParkingLots();
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      setSelectedLot(null);
-      loadParkingLots();
-      setQuery("");
-      mapRef.current?.animateToRegion(
-        { ...region, latitudeDelta: 0.008, longitudeDelta: 0.008 },
-        500
-      );
-    }, [region])
-  );
+  // Không cần useFocusEffect nữa vì đã load ở useEffect
+  // useFocusEffect có thể gây reset selectedLot không mong muốn
 
   useEffect(() => {
     if (selectedLot) {
       (async () => {
         try {
+          setLoadingStatistics(true);
           const statistics = await getParkingLotStatistics(selectedLot?.id);
-          setStatistics(statistics || []);
+          setStatistics(statistics);
         } catch (e) {
           console.error(e);
+          setStatistics(null);
         } finally {
-          setLoading(false);
+          setLoadingStatistics(false);
         }
       })();
+    } else {
+      setStatistics(null);
+      setLoadingStatistics(false);
     }
   }, [selectedLot]);
 
@@ -161,8 +158,10 @@ export default function MapParking() {
               description={`Bãi đỗ xe ${lot.name}`}
               pinColor={isSelected ? "red" : "#2b7fff"}
               onPress={() => {
-                setSelectedLot(lot);
+                // Zoom trước để người dùng thấy ngay
                 flyToLot(lot, 0.008);
+                // Sau đó set selectedLot để mở panel
+                setSelectedLot(lot);
               }}
             >
               <Image

@@ -19,7 +19,6 @@ import {
   cancelReservation,
   checkInReservation,
 } from "../../../lib/api/booking";
-import { PageHeader } from "../../components/common/PageHeader";
 import { AppColor } from "@/lib/utils/color";
 
 type ReservationData = {
@@ -56,6 +55,31 @@ type ReservationData = {
     license_plate: string;
     vehicle_type: string;
   };
+  reservation_request: {
+    parking_lot: {
+      id: number;
+      name: string;
+    };
+  };
+  distance_from_gate_meters?: number;
+};
+export const getVehicleIcon = (type?: string) => {
+  if (!type) return "car";
+  return type === "motorbike" ? "bicycle" : "car";
+};
+
+export const getGateTypeLabel = (type?: string) => {
+  if (!type) return "N/A";
+  switch (type) {
+    case "entry":
+      return "Vào";
+    case "exit":
+      return "Ra";
+    case "both":
+      return "Vào/Ra";
+    default:
+      return type;
+  }
 };
 
 export default function QRCheckinScreen() {
@@ -190,25 +214,6 @@ export default function QRCheckinScreen() {
         return "Ô tô 7 chỗ";
       case "light_truck":
         return "Xe tải nhẹ";
-      default:
-        return type;
-    }
-  };
-
-  const getVehicleIcon = (type?: string) => {
-    if (!type) return "car";
-    return type === "motorbike" ? "bicycle" : "car";
-  };
-
-  const getGateTypeLabel = (type?: string) => {
-    if (!type) return "N/A";
-    switch (type) {
-      case "entry":
-        return "Vào";
-      case "exit":
-        return "Ra";
-      case "both":
-        return "Vào/Ra";
       default:
         return type;
     }
@@ -468,47 +473,64 @@ export default function QRCheckinScreen() {
                       </Text>
                     </View>
 
-                    {reservation.slot?.parking_lot && (
-                      <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
-                        <View className="flex-row items-center">
-                          <Ionicons name="business" size={20} color="#6b7280" />
-                          <Text className="text-gray-600 font-medium ml-3">
-                            Bãi đỗ
-                          </Text>
-                        </View>
-                        <Text className="text-gray-800 font-semibold text-base">
-                          {reservation.slot.parking_lot.name}
+                    <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
+                      <View className="flex-row items-center">
+                        <Ionicons name="business" size={20} color="#6b7280" />
+                        <Text className="text-gray-600 font-medium ml-3">
+                          Bãi đỗ
                         </Text>
                       </View>
-                    )}
+                      <Text className="text-gray-800 font-semibold text-base">
+                        {reservation.reservation_request.parking_lot.name ||
+                          "N/A"}
+                      </Text>
+                    </View>
 
-                    {reservation.gate && (
-                      <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
-                        <View className="flex-row items-center">
-                          <Ionicons name="git-branch" size={20} color="#6b7280" />
-                          <Text className="text-gray-600 font-medium ml-3">
-                            Cổng
-                          </Text>
-                        </View>
-                        <Text className="text-gray-800 font-semibold text-base">
-                          {reservation.gate.gate_code} ({getGateTypeLabel(reservation.gate.gate_type)})
+                    <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
+                      <View className="flex-row items-center">
+                        <Ionicons
+                          name="trail-sign-outline"
+                          size={20}
+                          color="#6b7280"
+                        />
+                        <Text className="text-gray-600 font-medium ml-3">
+                          Cổng
                         </Text>
                       </View>
-                    )}
+                      <Text className="text-gray-800 font-semibold text-base">
+                        {reservation?.gate?.gate_code || "N/A"}
+                        {reservation?.gate?.gate_type &&
+                          getGateTypeLabel(reservation.gate.gate_type)}
+                      </Text>
+                    </View>
 
-                    {reservation.slot && (
-                      <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
-                        <View className="flex-row items-center">
-                          <Ionicons name="location" size={20} color="#6b7280" />
-                          <Text className="text-gray-600 font-medium ml-3">
-                            Vị trí
-                          </Text>
-                        </View>
-                        <Text className="text-gray-800 font-semibold text-base">
-                          {reservation.slot.slot_code}
+                    <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
+                      <View className="flex-row items-center">
+                        <Ionicons name="location" size={20} color="#6b7280" />
+                        <Text className="text-gray-600 font-medium ml-3">
+                          Vị trí
                         </Text>
                       </View>
-                    )}
+                      <Text className="text-gray-800 font-semibold text-base">
+                        {reservation?.slot?.slot_code || "N/A"}
+                      </Text>
+                    </View>
+
+                    <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
+                      <View className="flex-row items-center">
+                        <Ionicons
+                          name="navigate-outline"
+                          size={20}
+                          color="#6b7280"
+                        />
+                        <Text className="text-gray-600 font-medium ml-3">
+                          Khoảng cách từ vị trí đỗ đến cổng
+                        </Text>
+                      </View>
+                      <Text className="text-gray-800 font-semibold text-base">
+                        {reservation?.distance_from_gate_meters || "N/A"} (m)
+                      </Text>
+                    </View>
 
                     {reservation.vehicle_snapshot && (
                       <>
@@ -563,7 +585,11 @@ export default function QRCheckinScreen() {
                     {reservation.end_time && (
                       <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
                         <View className="flex-row items-center">
-                          <Ionicons name="time-outline" size={20} color="#6b7280" />
+                          <Ionicons
+                            name="time-outline"
+                            size={20}
+                            color="#6b7280"
+                          />
                           <Text className="text-gray-600 font-medium ml-3">
                             Kết thúc
                           </Text>
@@ -579,13 +605,20 @@ export default function QRCheckinScreen() {
                     {reservation.start_time && reservation.end_time && (
                       <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
                         <View className="flex-row items-center">
-                          <Ionicons name="hourglass" size={20} color="#6b7280" />
+                          <Ionicons
+                            name="hourglass"
+                            size={20}
+                            color="#6b7280"
+                          />
                           <Text className="text-gray-600 font-medium ml-3">
                             Thời lượng đỗ
                           </Text>
                         </View>
                         <Text className="text-gray-800 font-semibold text-base">
-                          {calculateDuration(reservation.start_time, reservation.end_time)}
+                          {calculateDuration(
+                            reservation.start_time,
+                            reservation.end_time
+                          )}
                         </Text>
                       </View>
                     )}

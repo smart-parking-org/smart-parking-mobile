@@ -13,8 +13,9 @@ export type ParkingLot = {
 export type ParkingLotSlotSummary = {
   total: number;
   available: number;
-  hold: number;
   occupied: number;
+  pending_assignments: number;
+  physical_available: number;
 };
 
 export type ParkingLotStats = {

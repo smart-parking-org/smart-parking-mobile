@@ -20,11 +20,15 @@ export default function DetailMarkerPanel({
   onReserve: () => void;
 }) {
   // xử lý dữ liệu an toàn (có thể undefined tùy schema)
-  const { available } = statistics.summary;
+  const { available, physical_available } = statistics.summary;
   const { motorbike, car_4_seat, car_7_seat, light_truck } =
     statistics.by_vehicle_type;
 
-  const name = lot?.name ?? "Bãi đỗ xe";
+  // Sử dụng parking_lot_name từ statistics nếu có, nếu không thì dùng lot.name
+  const name = statistics.parking_lot_name || lot?.name || "Bãi đỗ xe";
+  
+  // Sử dụng physical_available để hiển thị trạng thái (chỗ thực tế có thể đỗ)
+  const displayAvailable = physical_available ?? available;
 
   return (
     <>
@@ -59,7 +63,7 @@ export default function DetailMarkerPanel({
             <View className="flex-row items-center" style={{ flexShrink: 0 }}>
               {/* Chip trạng thái: minWidth + 1 dòng */}
               <View
-                className={available > 0 ? "bg-green-50" : "bg-red-50"}
+                className={displayAvailable > 0 ? "bg-green-50" : "bg-red-50"}
                 style={{
                   paddingHorizontal: 10,
                   paddingVertical: 6,
@@ -72,7 +76,7 @@ export default function DetailMarkerPanel({
                 <MaterialCommunityIcons
                   name="checkbox-blank-circle"
                   size={10}
-                  color={available > 0 ? "#16a34a" : "#ef4444"}
+                  color={displayAvailable > 0 ? "#16a34a" : "#ef4444"}
                 />
                 <Text
                   numberOfLines={1} // ✅ ép 1 dòng
@@ -81,10 +85,10 @@ export default function DetailMarkerPanel({
                     marginLeft: 6,
                     fontSize: 12,
                     fontWeight: "600",
-                    color: available > 0 ? "#16a34a" : "#ef4444",
+                    color: displayAvailable > 0 ? "#16a34a" : "#ef4444",
                   }}
                 >
-                  {available > 0 ? "Còn chỗ" : "Hết chỗ"}
+                  {displayAvailable > 0 ? "Còn chỗ" : "Hết chỗ"}
                 </Text>
               </View>
 
@@ -113,12 +117,14 @@ export default function DetailMarkerPanel({
               </View>
               <View className="flex-row items-center gap-2">
                 <Capacity
-                  available={motorbike.available}
+                  available={motorbike.physical_available ?? motorbike.available}
                   total={motorbike.total}
                   color="#22c55e"
                 />
                 <Text style={{ color: AppColor.TEXT }}>
-                  <Text className="text-green-600">{motorbike.available}</Text>
+                  <Text className="text-green-600">
+                    {motorbike.physical_available ?? motorbike.available}
+                  </Text>
                   <Text> / {motorbike.total}</Text>
                 </Text>
               </View>
@@ -138,12 +144,14 @@ export default function DetailMarkerPanel({
               </View>
               <View className="flex-row items-center gap-2">
                 <Capacity
-                  available={car_4_seat.available}
+                  available={car_4_seat.physical_available ?? car_4_seat.available}
                   total={car_4_seat.total}
                   color="#22c55e"
                 />
                 <Text style={{ color: AppColor.TEXT }}>
-                  <Text className="text-green-600">{car_4_seat.available}</Text>
+                  <Text className="text-green-600">
+                    {car_4_seat.physical_available ?? car_4_seat.available}
+                  </Text>
                   <Text> / {car_4_seat.total}</Text>
                 </Text>
               </View>
@@ -163,12 +171,14 @@ export default function DetailMarkerPanel({
               </View>
               <View className="flex-row items-center gap-2">
                 <Capacity
-                  available={car_7_seat.available}
+                  available={car_7_seat.physical_available ?? car_7_seat.available}
                   total={car_7_seat.total}
                   color="#22c55e"
                 />
                 <Text style={{ color: AppColor.TEXT }}>
-                  <Text className="text-green-600">{car_7_seat.available}</Text>
+                  <Text className="text-green-600">
+                    {car_7_seat.physical_available ?? car_7_seat.available}
+                  </Text>
                   <Text> / {car_7_seat.total}</Text>
                 </Text>
               </View>
@@ -188,13 +198,13 @@ export default function DetailMarkerPanel({
               </View>
               <View className="flex-row items-center gap-2">
                 <Capacity
-                  available={light_truck.available}
+                  available={light_truck.physical_available ?? light_truck.available}
                   total={light_truck.total}
                   color="#22c55e"
                 />
                 <Text style={{ color: AppColor.TEXT }}>
                   <Text className="text-green-600">
-                    {light_truck.available}
+                    {light_truck.physical_available ?? light_truck.available}
                   </Text>
                   <Text> / {light_truck.total}</Text>
                 </Text>

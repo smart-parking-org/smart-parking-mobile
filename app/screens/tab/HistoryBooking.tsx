@@ -4,12 +4,13 @@ import {
   Text,
   FlatList,
   Pressable,
+  TouchableOpacity,
   ActivityIndicator,
   Alert,
   RefreshControl,
   ScrollView,
 } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, router } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { getProfile } from "../../../lib/api/auth";
 import { apiPayment } from "../../../lib/api/client";
@@ -61,6 +62,11 @@ type ReservationHistory = {
     amount: number;
     status: string;
   } | null;
+  parking_lot: {
+    id: number;
+    name: string;
+  };
+  distance_from_gate_meters?: number;
 };
 
 // Type cho Violation (nếu có API)
@@ -83,6 +89,7 @@ type StatusFilter =
   | "all"
   | "checked_out"
   | "checked_in"
+  | "pending_checkout"
   | "cancelled"
   | "expired"
   | "confirmed";
@@ -90,11 +97,16 @@ type StatusFilter =
 // Status filter options
 const STATUS_FILTERS: { value: StatusFilter; label: string; icon: string }[] = [
   { value: "all", label: "Tất cả", icon: "apps" },
-  { value: "checked_out", label: "Đã thanh toán", icon: "receipt" },
-  { value: "checked_in", label: "Đang sử dụng", icon: "car" },
-  { value: "cancelled", label: "Đã hủy", icon: "close-circle" },
-  { value: "expired", label: "Hết hạn", icon: "time-outline" },
   { value: "confirmed", label: "Đã xác nhận", icon: "checkmark-circle" },
+  { value: "checked_in", label: "Đang sử dụng", icon: "radio" },
+  {
+    value: "pending_checkout",
+    label: "Chờ checkout",
+    icon: "hourglass-outline",
+  },
+  { value: "checked_out", label: "Đã thanh toán", icon: "card" },
+  { value: "cancelled", label: "Đã hủy", icon: "close-circle" },
+  { value: "expired", label: "Hết hạn", icon: "alarm" },
 ];
 
 // API Functions
@@ -195,7 +207,7 @@ function getStatusLabel(status: string): {
     cancelled: {
       label: (
         <View className="flex-row items-center gap-1">
-          <Ionicons name="close" size={16} color="#ef4444" />
+          <Ionicons name="close-circle" size={16} color="#ef4444" />
           <Text className="text-[10px] font-bold text-[#ef4444]">Đã hủy</Text>
         </View>
       ),
@@ -220,6 +232,17 @@ function getStatusLabel(status: string): {
         </View>
       ),
       bgColor: "#cffafe",
+    },
+    pending_checkout: {
+      label: (
+        <View className="flex-row items-center gap-1">
+          <Ionicons name="hourglass-outline" size={16} color="#f59e0b" />
+          <Text className="text-[10px] font-bold text-[#f59e0b]">
+            Chờ checkout
+          </Text>
+        </View>
+      ),
+      bgColor: "#fef3c7",
     },
   };
   return (
@@ -419,28 +442,33 @@ function BookingHistoryItem({ item }: { item: ReservationHistory }) {
 
       {/* Parking Lot & Slot */}
       <View className="mb-3 pb-3 border-b border-gray-100">
-        {item.slot?.parking_lot && (
-          <View className="flex-row items-center mb-2">
-            <Ionicons name="business" size={16} color="#6b7280" />
-            <Text className="text-gray-800 font-medium text-sm ml-2">
-              {item.slot.parking_lot.name}
-            </Text>
-          </View>
-        )}
+        <View className="flex-row items-center mb-2">
+          <Ionicons name="business" size={16} color="#6b7280" />
+          <Text className="text-gray-800 font-medium text-sm ml-2">
+            Bãi đỗ: {item?.slot?.parking_lot?.name || item.parking_lot.name}
+          </Text>
+        </View>
         <View className="flex-row items-center mb-2">
           <Ionicons name="location" size={16} color="#6b7280" />
           <Text className="text-gray-600 text-sm ml-2">
-            {item.slot?.slot_code || "N/A"}
+            Vị trí: {item.slot?.slot_code || "N/A"}
           </Text>
         </View>
-        {item.gate && (
-          <View className="flex-row items-center">
-            <Ionicons name="git-branch" size={16} color="#6b7280" />
-            <Text className="text-gray-600 text-sm ml-2">
-              Cổng: {item.gate.gate_code} ({getGateTypeLabel(item.gate.gate_type)})
-            </Text>
-          </View>
-        )}
+        <View className="flex-row items-center mb-2">
+          <Ionicons name="trail-sign-outline" size={16} color="#6b7280" />
+          <Text className="text-gray-600 text-sm ml-2">
+            Cổng: {item?.gate?.gate_code || "N/A"}{" "}
+            {item?.gate?.gate_type &&
+              `(${getGateTypeLabel(item.gate.gate_type)})`}
+          </Text>
+        </View>
+        <View className="flex-row items-center">
+          <Ionicons name="navigate-outline" size={16} color="#6b7280" />
+          <Text className="text-gray-600 text-sm ml-2">
+            Khoảng cách từ slot đến cổng:{" "}
+            {item?.distance_from_gate_meters || "N/A"} (m)
+          </Text>
+        </View>
       </View>
 
       {/* Vehicle Info */}
@@ -523,6 +551,75 @@ function BookingHistoryItem({ item }: { item: ReservationHistory }) {
               {item.payment.amount.toLocaleString("vi-VN")} đ
             </Text>
           </View>
+        </View>
+      )}
+
+      {/* Nút Đặt lại - chỉ hiển thị cho checked_out, cancelled, expired */}
+      {(item.status === "checked_out" ||
+        item.status === "cancelled" ||
+        item.status === "expired") && (
+        <View
+          style={{
+            marginTop: 12,
+            paddingTop: 12,
+            borderTopWidth: 1,
+            borderTopColor: "#E5E7EB",
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => {
+              const parkingLotId =
+                item.slot?.parking_lot?.id || item.parking_lot?.id;
+              const parkingLotName =
+                item.slot?.parking_lot?.name || item.parking_lot?.name;
+
+              console.log("Đặt lại - parkingLotId:", parkingLotId);
+              console.log("Đặt lại - parkingLotName:", parkingLotName);
+              console.log("Đặt lại - status:", item.status);
+
+              if (parkingLotId) {
+                router.push({
+                  pathname: "/screens/parking/VehicleSlotScreen",
+                  params: {
+                    lotId: String(parkingLotId),
+                    lotName: parkingLotName || "",
+                  },
+                });
+              } else {
+                Alert.alert(
+                  "Lỗi",
+                  "Không thể xác định bãi đỗ. Vui lòng thử lại."
+                );
+              }
+            }}
+            activeOpacity={0.8}
+            style={{
+              backgroundColor: "#2563eb",
+              borderRadius: 12,
+              paddingVertical: 14,
+              paddingHorizontal: 20,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              shadowColor: "#2563eb",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.2,
+              shadowRadius: 4,
+              elevation: 3,
+            }}
+          >
+            <Ionicons name="refresh" size={20} color="white" />
+            <Text
+              style={{
+                color: "white",
+                fontWeight: "bold",
+                fontSize: 16,
+                marginLeft: 8,
+              }}
+            >
+              Đặt lại
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
