@@ -619,10 +619,10 @@ export default function NotificationScreen() {
 
     // Xử lý navigation dựa trên type
     if (notification.type === "payment_required") {
-      // Navigate đến PaymentScreen với reservation_id
+      // Navigate đến CheckoutScreen với reservation_id
       if (notification.reservationId) {
         router.push({
-          pathname: "/screens/reservations/PaymentScreen",
+          pathname: "/screens/reservations/CheckoutScreen",
           params: {
             reservationId: String(notification.reservationId),
           },

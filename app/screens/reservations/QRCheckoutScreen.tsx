@@ -12,7 +12,6 @@ import { router, Stack, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import QRCode from "react-native-qrcode-svg";
 import { apiPayment } from "@/lib/api/client";
-import { PageHeader } from "../../components/common/PageHeader";
 import { AppColor } from "@/lib/utils/color";
 import { getVehicleIcon } from "@/app/screens/reservations/QRCheckInScreen";
 
@@ -90,14 +89,17 @@ export default function QRCheckoutScreen() {
       const reservationData = resResponse.data.data;
       setReservation(reservationData);
 
-      // ✅ Kiểm tra: Nếu thanh toán trực tiếp (offline) hoặc đã thanh toán online (PAID)
+      // ✅ Kiểm tra các trạng thái thanh toán
       const isOfflinePayment =
         reservationData.payment?.meta?.payment_method === "offline";
       const isPaid = reservationData.payment?.status === "PAID";
       const isMonthlyPass = reservationData.payment?.meta?.is_free === true;
+      const isCheckedIn = reservationData.status === "checked_in";
+      const isPendingCheckout = reservationData.status === "pending_checkout";
+      const isPendingPayment = reservationData.status === "pending_payment";
 
-      // ✅ Không cần lấy checkout code nữa, dùng reservation_code
-      // Nếu có checkoutCode từ params (từ check-in với monthly pass), sử dụng nó
+      // ✅ Xử lý checkoutCode
+      // Nếu có checkoutCode từ params (từ check-in/checkout với monthly pass), sử dụng nó
       if (checkoutCode) {
         setCheckoutCodeFromAPI(checkoutCode);
       } else {
@@ -105,7 +107,25 @@ export default function QRCheckoutScreen() {
         setCheckoutCodeFromAPI(null);
       }
 
-      if (!isOfflinePayment && !isPaid && !isMonthlyPass) {
+      // ✅ Kiểm tra điều kiện hiển thị QR checkout
+      // Có thể hiển thị QR nếu:
+      // 1. Đã thanh toán online (PAID)
+      // 2. Thanh toán trực tiếp (offline) - checked_in, pending_checkout hoặc pending_payment
+      // 3. Có monthly pass (is_free = true)
+      // 4. Status là pending_checkout (đã checkout, chờ quét)
+      const canShowQR =
+        isPaid ||
+        (isOfflinePayment &&
+          (isCheckedIn || isPendingCheckout || isPendingPayment)) ||
+        isMonthlyPass ||
+        isPendingCheckout;
+
+      if (
+        !canShowQR &&
+        !isPendingPayment &&
+        !(isCheckedIn && isOfflinePayment)
+      ) {
+        // Nếu chưa thanh toán và không phải pending_payment hoặc checked_in với offline payment, yêu cầu thanh toán
         Alert.alert(
           "Lỗi",
           "Vui lòng thanh toán trước để nhận mã QR checkout.",
@@ -117,6 +137,11 @@ export default function QRCheckoutScreen() {
           ]
         );
         return;
+      }
+
+      // Nếu đang pending_payment, có thể cho phép xem nhưng hiển thị thông báo
+      if (isPendingPayment && !isPaid && !isOfflinePayment) {
+        // Có thể hiển thị nhưng sẽ có thông báo ở dưới
       }
     } catch (e: any) {
       console.error("Error loading reservation:", e);
@@ -223,13 +248,35 @@ export default function QRCheckoutScreen() {
     );
   }
 
-  // ✅ Kiểm tra payment đã thanh toán chưa (hoặc thanh toán trực tiếp)
+  // ✅ Kiểm tra các trạng thái thanh toán và reservation
   const isOfflinePayment =
     reservation.payment?.meta?.payment_method === "offline";
   const isPaid = reservation.payment?.status === "PAID";
-  const isPendingOffline = isOfflinePayment && !isPaid;
+  const isMonthlyPass = reservation.payment?.meta?.is_free === true;
+  const isCheckedIn = reservation.status === "checked_in";
+  const isPendingCheckout = reservation.status === "pending_checkout";
+  const isPendingPayment = reservation.status === "pending_payment";
+  // ✅ Hiển thị số tiền cho offline payment chưa PAID (cả checked_in, pending_payment và pending_checkout)
+  const isPendingOffline =
+    isOfflinePayment &&
+    !isPaid &&
+    (isCheckedIn || isPendingCheckout || isPendingPayment);
 
-  if (!isOfflinePayment && !isPaid) {
+  // ✅ Kiểm tra điều kiện hiển thị QR checkout
+  // Cho phép hiển thị QR nếu:
+  // 1. Đã thanh toán online (PAID)
+  // 2. Thanh toán trực tiếp (offline) - checked_in, pending_checkout hoặc pending_payment
+  // 3. Có monthly pass (is_free = true)
+  // 4. Status là pending_checkout (đã checkout, chờ quét)
+  const canShowQR =
+    isPaid ||
+    (isOfflinePayment &&
+      (isCheckedIn || isPendingCheckout || isPendingPayment)) ||
+    isMonthlyPass ||
+    isPendingCheckout;
+
+  // Nếu không thể hiển thị QR và không phải pending_payment hoặc checked_in với offline payment, hiển thị lỗi
+  if (!canShowQR && !isPendingPayment && !(isCheckedIn && isOfflinePayment)) {
     return (
       <View className="flex-1 items-center justify-center px-6">
         <View className="bg-white p-8 rounded-3xl shadow-lg items-center">
@@ -292,7 +339,7 @@ export default function QRCheckoutScreen() {
                       Mã QR Checkout
                     </Text>
                     <Text className="text-sm text-gray-500">
-                      Hiển thị cho nhân viên hoặc máy quét
+                      Hiển thị cho nhân viên hoặc máy quét abc
                     </Text>
                   </View>
                 </View>

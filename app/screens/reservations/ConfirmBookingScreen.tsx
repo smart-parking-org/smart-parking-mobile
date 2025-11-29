@@ -9,10 +9,10 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { apiPayment } from "@/lib/api/client";
-import { PageHeader } from "../../components/common/PageHeader";
+import { AppColor } from "@/lib/utils/color";
 
 type ReservationDetails = {
   id: number;
@@ -108,16 +108,32 @@ export default function ConfirmBookingScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.select({ ios: "padding" })}
-      className="flex-1 bg-gray-50"
-    >
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerClassName="flex-grow"
-        showsVerticalScrollIndicator={false}
+    <>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: "ĐẶT CHỖ THÀNH CÔNG",
+          headerTitleAlign: "center",
+          headerStyle: { backgroundColor: AppColor.PRIMARY },
+          headerShadowVisible: false,
+          headerTitleStyle: {
+            fontWeight: "800",
+            fontSize: 16,
+            color: "#fff",
+          },
+          headerTintColor: "#fff",
+          headerBackVisible: true,
+        }}
+      />
+      <KeyboardAvoidingView
+        behavior={Platform.select({ ios: "padding" })}
+        className="flex-1 bg-gray-50"
       >
-        <PageHeader title="Đặt chỗ thành công" showHome={false} />
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerClassName="flex-grow"
+          showsVerticalScrollIndicator={false}
+        >
 
         {/* Reservation Info Card */}
         {reservation && (
@@ -209,5 +225,6 @@ export default function ConfirmBookingScreen() {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </>
   );
 }

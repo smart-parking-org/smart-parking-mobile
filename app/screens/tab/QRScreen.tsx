@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
+  RefreshControl,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,10 +23,13 @@ const qrPayload = (item: Reservation) => {
 
 export default function QRScreen() {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [items, setItems] = useState<Reservation[]>([]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true);
+    }
     try {
       // Get user_id từ profile
       const user = await getProfile();
@@ -41,9 +45,23 @@ export default function QRScreen() {
     } catch (error: any) {
       console.error("Error loading reservations:", error);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   }, []);
+
+  // ✅ Hàm xử lý pull-to-refresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await load(false); // Không hiển thị loading spinner khi refresh
+    } catch (error) {
+      console.error("Error refreshing:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [load]);
 
   useFocusEffect(
     useCallback(() => {
@@ -70,24 +88,13 @@ export default function QRScreen() {
   }, [load]);
 
   const onCheckout = (reservation: Reservation) => {
-    // Nếu pending_payment, navigate tới PaymentScreen (payment đã được tạo, chỉ cần thanh toán)
-    if (reservation.status === "pending_payment") {
-      router.push({
-        pathname: "/screens/reservations/PaymentScreen",
-
-        params: {
-          reservationId: String(reservation.id),
-        },
-      });
-    } else if (reservation.status === "checked_in") {
-      // Nếu checked_in, navigate tới CheckoutScreen để chọn phương thức thanh toán và tạo payment
-      router.push({
-        pathname: "/screens/reservations/CheckoutScreen",
-        params: {
-          reservationId: String(reservation.id),
-        },
-      });
-    }
+    // Navigate tới CheckoutScreen (xử lý cả checked_in và pending_payment)
+    router.push({
+      pathname: "/screens/reservations/CheckoutScreen",
+      params: {
+        reservationId: String(reservation.id),
+      },
+    });
   };
 
   const onGetCheckoutCode = async (reservation: Reservation) => {
@@ -419,6 +426,9 @@ export default function QRScreen() {
           renderItem={renderItem}
           contentContainerStyle={{ paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         />
       )}
     </View>

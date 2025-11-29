@@ -138,7 +138,7 @@ export default function Root() {
                     onPress: () => {
                       if (reservationId) {
                         router.push(
-                          `/screens/reservations/PaymentScreen?reservationId=${reservationId}`
+                          `/screens/reservations/CheckoutScreen?reservationId=${reservationId}`
                         );
                       } else if (isMonthlyPass) {
                         router.push("/screens/MonthlyPassScreen");

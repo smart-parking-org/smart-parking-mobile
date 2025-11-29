@@ -89,6 +89,7 @@ type StatusFilter =
   | "all"
   | "checked_out"
   | "checked_in"
+  | "pending_payment"
   | "pending_checkout"
   | "cancelled"
   | "expired"
@@ -99,14 +100,15 @@ const STATUS_FILTERS: { value: StatusFilter; label: string; icon: string }[] = [
   { value: "all", label: "Tất cả", icon: "apps" },
   { value: "confirmed", label: "Đã xác nhận", icon: "checkmark-circle" },
   { value: "checked_in", label: "Đang sử dụng", icon: "radio" },
+  { value: "pending_payment", label: "Chờ thanh toán", icon: "cash" },
+  { value: "checked_out", label: "Đã thanh toán", icon: "card" },
+  { value: "cancelled", label: "Đã hủy", icon: "close-circle" },
+  { value: "expired", label: "Hết hạn", icon: "alarm" },
   {
     value: "pending_checkout",
     label: "Chờ checkout",
     icon: "hourglass-outline",
   },
-  { value: "checked_out", label: "Đã thanh toán", icon: "card" },
-  { value: "cancelled", label: "Đã hủy", icon: "close-circle" },
-  { value: "expired", label: "Hết hạn", icon: "alarm" },
 ];
 
 // API Functions
